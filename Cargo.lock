@@ -718,7 +718,7 @@ dependencies = [
 
 [[package]]
 name = "collector"
-version = "1.0.1"
+version = "1.0.2"
 dependencies = [
  "adlx",
  "battery",
@@ -751,7 +751,7 @@ dependencies = [
 
 [[package]]
 name = "common"
-version = "1.0.1"
+version = "1.0.2"
 dependencies = [
  "chrono",
  "file_icon_provider",
@@ -5124,7 +5124,7 @@ dependencies = [
 
 [[package]]
 name = "ui"
-version = "1.0.1"
+version = "1.0.2"
 dependencies = [
  "chrono",
  "common",
@@ -5327,7 +5327,7 @@ dependencies = [
 
 [[package]]
 name = "wattseal"
-version = "1.0.1"
+version = "1.0.2"
 dependencies = [
  "chrono",
  "collector",

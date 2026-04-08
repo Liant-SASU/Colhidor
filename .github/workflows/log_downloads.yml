@@ -1,0 +1,44 @@
+name: Log Downloads
+
+on:
+  schedule:
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+
+jobs:
+  log:
+    runs-on: macos-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v6
+        with:
+          ref: main
+          path: main
+
+      - name: Checkout gh-pages
+        uses: actions/checkout@v6
+        with:
+          ref: gh-pages
+          path: gh-pages
+
+      - name: Set date
+        id: date
+        run: echo "today=$(date -u +'%Y-%m-%d')" >> "$GITHUB_OUTPUT"
+
+      - name: Run logger
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          python3 main/log_downloads.py
+
+      - name: Commit and push to gh-pages
+        uses: stefanzweifel/git-auto-commit-action@v7
+        with:
+          commit_message: "chore: log downloads ${{ steps.date.outputs.today }}"
+          branch: gh-pages
+          repository: gh-pages
+          file_pattern: 'download_count.txt download_daily.txt download_daily_31.txt'
