@@ -33,5 +33,4 @@ jobs:
         with:
           commit_message: "chore: log downloads ${{ steps.date.outputs.today }}"
           branch: gh-pages
-          repository: gh-pages
           file_pattern: 'download_count.txt download_daily.txt'
