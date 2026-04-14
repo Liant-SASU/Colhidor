@@ -50,8 +50,7 @@ pub fn get_gpu_list() -> Vec<String> {
                 Err(_) => break,
             };
 
-            let mut desc = DXGI_ADAPTER_DESC1::default();
-            if adapter.GetDesc1(&mut desc).is_ok() {
+            if let Ok(desc) = adapter.GetDesc1() {
                 let name = String::from_utf16_lossy(
                     &desc
                         .Description
@@ -326,8 +325,8 @@ mod intel_gpu {
 
     use windows::{
         Win32::System::Performance::{
-            PDH_FMT_COUNTERVALUE_ITEM_W, PDH_FMT_DOUBLE, PdhAddEnglishCounterW, PdhCloseQuery, PdhCollectQueryData,
-            PdhGetFormattedCounterArrayW, PdhOpenQueryW,
+            PDH_FMT_COUNTERVALUE_ITEM_W, PDH_FMT_DOUBLE, PDH_HCOUNTER, PDH_HQUERY, PdhAddEnglishCounterW,
+            PdhCloseQuery, PdhCollectQueryData, PdhGetFormattedCounterArrayW, PdhOpenQueryW,
         },
         core::PCWSTR,
     };
@@ -338,24 +337,28 @@ mod intel_gpu {
     const PDH_MORE_DATA: u32 = 0x800007D2;
 
     pub struct IntelGPUSensor {
-        query: isize,
-        counter: isize,
+        query: PDH_HQUERY,
+        counter: PDH_HCOUNTER,
         initialized: std::cell::Cell<bool>,
     }
 
     impl IntelGPUSensor {
         pub fn new(_index: u32) -> Result<Self, SensorError> {
             unsafe {
-                let mut query: isize = 0;
-                if PdhOpenQueryW(None, 0, &mut query) != 0 {
+                let mut query = std::mem::MaybeUninit::<PDH_HQUERY>::uninit();
+                if PdhOpenQueryW(None, 0, query.as_mut_ptr()) != 0 {
                     return Err(SensorError::ReadError("PdhOpenQuery failed".to_string()));
                 }
+                let query = query.assume_init();
+
                 let path: Vec<u16> = "\\GPU Engine(*)\\Utilization Percentage\0".encode_utf16().collect();
-                let mut counter: isize = 0;
-                if PdhAddEnglishCounterW(query, PCWSTR(path.as_ptr()), 0, &mut counter) != 0 {
+                let mut counter = std::mem::MaybeUninit::<PDH_HCOUNTER>::uninit();
+                if PdhAddEnglishCounterW(query, PCWSTR(path.as_ptr()), 0, counter.as_mut_ptr()) != 0 {
                     let _ = PdhCloseQuery(query);
                     return Err(SensorError::ReadError("PdhAddEnglishCounter failed".to_string()));
                 }
+                let counter = counter.assume_init();
+
                 Ok(IntelGPUSensor {
                     query,
                     counter,

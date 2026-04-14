@@ -8,7 +8,7 @@ win-kernel-driver = { git = "https://github.com/alex-dow/winRing0-rs" }
 win_ring0 = { git = "https://github.com/alex-dow/winRing0-rs" }
 adlx = "0.0.0-alpha.1"
 is-admin = "0.1.4"
-windows = { version = "0.57", features = [
+windows = { version = "0.62.2", features = [
     "Win32_Graphics_Dxgi",
     "Win32_Foundation",
     "Win32_System_Performance",
