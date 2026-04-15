@@ -6,7 +6,7 @@ Thanks for your interest in contributing to WattSeal! This is our first open-sou
 
 ### Reporting Bugs
 
-If you find a bug, please [open an issue](https://github.com/Daminoup88/WattSeal/issues/new?template=bug_report.md) with:
+If you find a bug, please [open an issue](https://github.com/Daminoup88/WattSeal/issues/new?template=bug_report.yml) with:
 
 - A clear description of the problem
 - Steps to reproduce it
@@ -15,7 +15,7 @@ If you find a bug, please [open an issue](https://github.com/Daminoup88/WattSeal
 
 ### Suggesting Features
 
-Got an idea? [Open a feature request](https://github.com/Daminoup88/WattSeal/issues/new?template=feature_request.md) and describe what you'd like to see and why it would be useful.
+Got an idea? [Open a feature request](https://github.com/Daminoup88/WattSeal/issues/new?template=feature_request.yml) and describe what you'd like to see and why it would be useful.
 
 ### Submitting Code
 
