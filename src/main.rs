@@ -7,7 +7,7 @@ use std::{
     time::Duration,
 };
 
-use bpaf::*;
+use bpaf::{OptionParser, Parser, construct, long, short};
 use collector::CollectorApp;
 use common::WINDOW_ICON_BYTES;
 use tray_icon::{
@@ -27,6 +27,7 @@ use winit::{
 struct Options {
     ui_mode: bool,
     background_mode: bool,
+    headless_mode: bool,
 }
 
 /// Returns options parser to run
@@ -37,17 +38,24 @@ fn options() -> OptionParser<Options> {
 
     let background_mode = short('b')
         .long("background")
+        .long("bg")
         .help(
             "Runs Wattseal in the background. It's possible to return to the
             UI mode from the tray icons",
         )
         .flag(true, false);
 
+    let headless_mode = long("headless")
+        .help("Runs only Wattseal sensors, without UI and tray icon.")
+        .flag(true, false);
+
     construct!(Options {
         ui_mode,
         background_mode,
+        headless_mode,
     })
     .to_options()
+    .descr("WattSeal - Per-app power monitoring tool")
 }
 
 /// Spawns the UI subprocess if not already running.
@@ -165,6 +173,14 @@ fn run_linux_tray(ui_child: &Arc<Mutex<Option<Child>>>) -> bool {
     true
 }
 
+/// Initializes the collector
+fn start_collector() -> Result<CollectorApp, String> {
+    let mut app = CollectorApp::new().map_err(|e| format!("Failed to create CollectorApp: {e}"))?;
+    app.initialize()
+        .map_err(|e| format!("Failed to initialize CollectorApp: {e}"))?;
+    Ok(app)
+}
+
 fn main() {
     if let Err(e) = common::set_current_dir_to_exe_dir() {
         common::clog!("⚠ Failed to set working directory to executable directory: {}", e);
@@ -185,6 +201,12 @@ fn main() {
         }
     }
 
+    if options.headless_mode && (options.ui_mode || options.background_mode) {
+        let msg = format!("Impossible to run headless mode if UI or background mode is enabled");
+        common::clog!("✗ {msg}");
+        return;
+    }
+
     if options.ui_mode {
         if let Err(err) = ui::run() {
             common::clog!("✗ UI failed to start: {err}");
@@ -201,25 +223,27 @@ fn main() {
         }
     };
 
+    if options.headless_mode {
+        match start_collector() {
+            Ok(mut app) => app.run(),
+            Err(e) => common::clog!("✗ {e}"),
+        }
+        return;
+    }
+
+    // Doesn't run in headless mode
     let (tx, rx) = mpsc::channel::<Result<(), String>>();
 
     thread::spawn(move || {
-        let mut app = match CollectorApp::new() {
+        let mut app = match start_collector() {
             Ok(app) => app,
             Err(e) => {
-                let msg = format!("Failed to create CollectorApp: {e}");
-                common::clog!("✗ {msg}");
-                let _ = tx.send(Err(msg));
+                common::clog!("✗ {e}");
+                let _ = tx.send(Err(e));
                 return;
             }
         };
-        if let Err(e) = app.initialize() {
-            let msg = format!("Failed to initialize CollectorApp: {e}");
-            common::clog!("✗ {msg}");
-            let _ = tx.send(Err(msg));
-            return;
-        }
-        tx.send(Ok(())).unwrap_or_default();
+        let _ = tx.send(Ok(()));
         app.run();
     });
 
