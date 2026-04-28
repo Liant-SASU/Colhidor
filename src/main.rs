@@ -34,7 +34,7 @@ struct Options {
 fn options() -> OptionParser<Options> {
     let ui_mode = long("ui")
         .help("Launch Wattseal with the graphical user interface.")
-        .flag(true, false);
+        .switch();
 
     let background_mode = short('b')
         .long("background")
@@ -43,11 +43,11 @@ fn options() -> OptionParser<Options> {
             "Runs Wattseal in the background. It's possible to return to the
             UI mode from the tray icons",
         )
-        .flag(true, false);
+        .switch();
 
     let headless_mode = long("headless")
         .help("Runs only Wattseal sensors, without UI and tray icon.")
-        .flag(true, false);
+        .switch();
 
     construct!(Options {
         ui_mode,
