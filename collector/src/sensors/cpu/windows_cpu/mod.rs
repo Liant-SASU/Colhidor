@@ -7,32 +7,14 @@ use crate::database::{CPUData, SensorData};
 
 mod driver;
 
-fn explain_driver_error(error: &str) -> String {
-    if error.contains("OpenSCManagerW (code 5)")
-        || error.contains("CreateServiceW (code 5)")
-        || error.contains("DeleteService (code 5)")
-        || error.contains("Access is denied")
-    {
-        return format!("{error}. Administrator privileges are required.");
-    }
-
-    if error.contains("(code 1072)") {
-        return format!(
-            "{error}. Windows reports the service is marked for deletion; close running WattSeal instances (and any tool using the Scaphandre driver), then retry. If it persists, reboot Windows."
-        );
-    }
-
-    error.to_string()
-}
-
 pub fn install() -> bool {
     match ScaphandreMsrReader::install() {
         Ok(()) => {
-            common::clog!("✓ CPU MSR driver installed successfully");
+            crate::clog!("✓ CPU MSR driver installed successfully");
             true
         }
         Err(e) => {
-            common::clog!("✗ Failed to install CPU MSR driver: {}", explain_driver_error(&e));
+            crate::clog!("✗ Failed to install CPU MSR driver: {e}");
             false
         }
     }
@@ -41,33 +23,40 @@ pub fn install() -> bool {
 pub fn uninstall() -> bool {
     match ScaphandreMsrReader::uninstall() {
         Ok(()) => {
-            common::clog!("✓ CPU MSR driver uninstalled successfully");
+            crate::clog!("✓ CPU MSR driver uninstalled successfully");
             true
         }
         Err(e) => {
-            common::clog!("✗ Failed to uninstall CPU MSR driver: {}", explain_driver_error(&e));
+            crate::clog!("✗ Failed to uninstall CPU MSR driver: {e}");
             false
         }
     }
 }
 
 pub fn setup() {
-    if !ScaphandreMsrReader::is_installed() {
-        common::clog!("\u{26a0} CPU MSR driver not installed. Admin approval is required once to install it.");
+    let installed = match ScaphandreMsrReader::is_installed() {
+        Ok(installed) => installed,
+        Err(e) => {
+            crate::clog!("\u{26a0} {e}");
+            false
+        }
+    };
+    if !installed {
+        crate::clog!("\u{26a0} CPU MSR driver not installed. Admin approval is required once to install it.");
         if let Ok(exe) = std::env::current_exe() {
             match runas::Command::new(&exe).arg("--install-cpu-driver").gui(true).status() {
                 Ok(status) if status.success() => {
-                    common::clog!("✓ CPU MSR driver installation completed");
+                    crate::clog!("✓ CPU MSR driver installation completed");
                 }
                 Ok(_) => {
-                    common::clog!("\u{26a0} CPU MSR driver installation canceled or failed; using estimation");
+                    crate::clog!("\u{26a0} CPU MSR driver installation canceled or failed; using estimation");
                 }
                 Err(e) => {
-                    common::clog!("\u{26a0} Failed to launch driver installer: {e}");
+                    crate::clog!("\u{26a0} Failed to launch driver installer: {e}");
                 }
             }
         } else {
-            common::clog!("\u{26a0} Unable to locate executable to install the CPU driver");
+            crate::clog!("\u{26a0} Unable to locate executable to install the CPU driver");
         }
     }
 }
