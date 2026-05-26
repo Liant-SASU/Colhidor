@@ -231,7 +231,7 @@ The project enforces the formatting and linting rules defined in `rustfmt.toml`.
 cargo +nightly fmt
 ```
 
-> The `.vscode/settings.json` is configured to format on save, so if you're using VS Code your code will be formatted automatically when you save a file.
+> The `.vscode/settings.json` and `.zed/settings.json` are configured to format on save, so if you're using VS Code or Zed your code will be formatted automatically when you save a file.
 
 ---
 
