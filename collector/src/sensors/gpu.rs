@@ -208,6 +208,7 @@ mod amd_gpu {
         perfo: PerformanceMonitoringServices,
         gpu: Gpu,
         last_reading: RefCell<Instant>,
+        vram_supported: bool,
     }
 
     impl AmdGPUSensor {
@@ -220,11 +221,39 @@ mod amd_gpu {
             let gpu_list = system.gpus().map_err(|e| SensorError::ReadError(e.to_string()))?;
             let gpu = gpu_list.at(index).map_err(|e| SensorError::ReadError(e.to_string()))?;
 
+            let supported_metrics = perfo
+                .supported_gpu_metrics(&gpu)
+                .map_err(|e| SensorError::ReadError(e.to_string()))?;
+
+            let power_supported = supported_metrics
+                .is_supported_gpu_power()
+                .map_err(|e| SensorError::ReadError(e.to_string()))?;
+            let usage_supported = supported_metrics
+                .is_supported_gpu_usage()
+                .map_err(|e| SensorError::ReadError(e.to_string()))?;
+            let vram_supported = supported_metrics
+                .is_supported_gpu_vram()
+                .map_err(|e| SensorError::ReadError(e.to_string()))?;
+
+            if !power_supported {
+                return Err(SensorError::ReadError(format!(
+                    "⚠ AMD GPU {} power telemetry unavailable at initialization",
+                    index
+                )));
+            }
+            if !usage_supported {
+                return Err(SensorError::ReadError(format!(
+                    "⚠ AMD GPU {} usage telemetry unavailable at initialization",
+                    index
+                )));
+            }
+
             Ok(AmdGPUSensor {
                 _helper: helper,
                 perfo,
                 gpu,
                 last_reading: RefCell::new(Instant::now()),
+                vram_supported,
             })
         }
     }
@@ -246,12 +275,16 @@ mod amd_gpu {
             let energy_j = power_w * duration;
 
             let usage = gpu_metrics.usage().map_err(|e| SensorError::ReadError(e.to_string()))?;
-            let memory = gpu_metrics.vram().map_err(|e| SensorError::ReadError(e.to_string()))?;
+            let memory = if self.vram_supported {
+                Some(gpu_metrics.vram().map_err(|e| SensorError::ReadError(e.to_string()))? as f64)
+            } else {
+                None
+            };
 
             let data = GPUData {
                 total_energy: Some(EnergyUj::from_joules(energy_j)),
                 usage_percent: Some(usage as f64),
-                vram_usage_percent: Some(memory as f64),
+                vram_usage_percent: memory,
             };
 
             *self.last_reading.borrow_mut() = now;
