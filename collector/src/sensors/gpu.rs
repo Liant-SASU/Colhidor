@@ -296,7 +296,7 @@ mod amd_gpu {
 
 #[cfg(any(target_os = "windows", target_os = "linux"))]
 mod nvidia_gpu {
-    use std::{cell::RefCell, collections::HashMap};
+    use std::{cell::RefCell, collections::HashMap, time::Instant};
 
     use common::types::EnergyUj;
     use nvml_wrapper::Nvml;
@@ -304,11 +304,18 @@ mod nvidia_gpu {
     use super::{Sensor, SensorError};
     use crate::database::{GPUData, SensorData};
 
+    enum NvidiaReadMode {
+        EnergyCounter,
+        PowerInstant, // fallback when energy counter isn't available
+    }
+
     pub struct NvidiaGPUSensor {
         nvml: Nvml,
         device_index: u32,
+        mode: NvidiaReadMode,
         last_timestamp: RefCell<u64>,
         last_energy_mj: RefCell<u64>,
+        last_power_instant: RefCell<Option<Instant>>,
     }
 
     impl NvidiaGPUSensor {
@@ -319,34 +326,33 @@ mod nvidia_gpu {
                 .device_by_index(index)
                 .map_err(|e| SensorError::ReadError(e.to_string()))?;
 
-            let power_probe = device.power_usage();
-            let utilization_probe = device.utilization_rates();
+            device
+                .utilization_rates()
+                .map_err(|e| SensorError::ReadError(format!("NVIDIA GPU {} utilization unavailable: {}", index, e)))?;
 
-            if let (Err(power_err), Err(util_err)) = (&power_probe, &utilization_probe) {
+            let mode = if device.total_energy_consumption().is_ok() {
+                common::clog!("NVIDIA GPU {}: using energy counter mode", index);
+                NvidiaReadMode::EnergyCounter
+            } else if device.power_usage().is_ok() {
+                common::clog!(
+                    "NVIDIA GPU {}: energy counter unavailable, using power instant mode",
+                    index
+                );
+                NvidiaReadMode::PowerInstant
+            } else {
                 return Err(SensorError::ReadError(format!(
-                    "NVML telemetry unavailable for device index {}: power='{}', utilization='{}'",
-                    index, power_err, util_err
+                    "⚠ NVIDIA GPU {}: no power telemetry available",
+                    index
                 )));
-            }
-
-            if let Err(power_err) = power_probe {
-                return Err(SensorError::ReadError(format!(
-                    "⚠ NVIDIA GPU {} power telemetry unavailable at initialization: {}",
-                    index, power_err
-                )));
-            }
-            if let Err(util_err) = utilization_probe {
-                return Err(SensorError::ReadError(format!(
-                    "⚠ NVIDIA GPU {} utilization telemetry unavailable at initialization: {}",
-                    index, util_err
-                )));
-            }
+            };
 
             Ok(NvidiaGPUSensor {
                 nvml,
                 device_index: index,
+                mode,
                 last_timestamp: RefCell::new(0),
                 last_energy_mj: RefCell::new(0),
+                last_power_instant: RefCell::new(None),
             })
         }
 
@@ -383,38 +389,60 @@ mod nvidia_gpu {
 
     impl Sensor for NvidiaGPUSensor {
         fn read_full_data(&self) -> Result<SensorData, SensorError> {
-            // Read NVIDIA GPU data here
             let device = self
                 .nvml
                 .device_by_index(self.device_index)
                 .map_err(|e| SensorError::ReadError(e.to_string()))?;
-            let current_energy_mj = device
-                .total_energy_consumption()
-                .map_err(|e| SensorError::ReadError(e.to_string()))?;
-            let mut last_energy_mj = self
-                .last_energy_mj
-                .try_borrow_mut()
-                .map_err(|_| SensorError::ReadError("Failed to borrow last_energy".to_string()))?;
 
-            let energy_mj = if *last_energy_mj == 0 {
-                0
-            } else {
-                current_energy_mj.saturating_sub(*last_energy_mj)
+            let now = Instant::now();
+
+            let energy = match self.mode {
+                NvidiaReadMode::EnergyCounter => {
+                    let current_energy_mj = device
+                        .total_energy_consumption()
+                        .map_err(|e| SensorError::ReadError(e.to_string()))?;
+                    let mut last_energy_mj = self
+                        .last_energy_mj
+                        .try_borrow_mut()
+                        .map_err(|_| SensorError::ReadError("Failed to borrow last energy".to_string()))?;
+                    let energy_mj = if *last_energy_mj == 0 {
+                        0
+                    } else {
+                        current_energy_mj.saturating_sub(*last_energy_mj)
+                    };
+                    *last_energy_mj = current_energy_mj;
+                    EnergyUj::from_millijoules(energy_mj)
+                }
+                NvidiaReadMode::PowerInstant => {
+                    let mw = device
+                        .power_usage()
+                        .map_err(|e| SensorError::ReadError(e.to_string()))?;
+                    let mut last_instant = self
+                        .last_power_instant
+                        .try_borrow_mut()
+                        .map_err(|_| SensorError::ReadError("Failed to borrow last power instant".to_string()))?;
+                    let energy = match *last_instant {
+                        None => EnergyUj::from_joules(0.0),
+                        Some(last) => {
+                            let dt = now.duration_since(last).as_secs_f64();
+                            EnergyUj::from_joules(mw as f64 / 1000.0 * dt)
+                        }
+                    };
+                    *last_instant = Some(now);
+                    energy
+                }
             };
-
-            *last_energy_mj = current_energy_mj;
 
             let utilization = device
                 .utilization_rates()
                 .map_err(|e| SensorError::ReadError(e.to_string()))?;
 
-            let data = GPUData {
-                total_energy: Some(EnergyUj::from_millijoules(energy_mj)),
+            Ok(GPUData {
+                total_energy: Some(energy),
                 usage_percent: Some(utilization.gpu as f64),
                 vram_usage_percent: Some(utilization.memory as f64),
-            };
-
-            Ok(data.into())
+            }
+            .into())
         }
     }
 }
