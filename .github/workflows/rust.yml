@@ -52,7 +52,7 @@ jobs:
         if: github.event_name == 'push'
         uses: actions/upload-artifact@v7
         with:
-          name: beta-windows
+          name: WattSeal-windows-beta
           path: WattSeal-windows.exe
 
   check-linux:
@@ -66,6 +66,9 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
 
+      - name: Install cargo-zigbuild
+        run: pip3 install cargo-zigbuild
+
       - uses: Swatinem/rust-cache@v2
         with:
           cache-on-failure: true
@@ -78,7 +81,8 @@ jobs:
             libxkbcommon-dev libwayland-dev
 
       - name: Build release
-        run: cargo build --release
+        run: |
+          cargo zigbuild --release --target x86_64-unknown-linux-gnu.2.17
 
       - name: Package
         run: |
@@ -89,7 +93,7 @@ jobs:
         if: github.event_name == 'push'
         uses: actions/upload-artifact@v7
         with:
-          name: beta-linux
+          name: WattSeal-linux-beta
           path: WattSeal-linux
 
   check-macos:
@@ -119,5 +123,5 @@ jobs:
         if: github.event_name == 'push'
         uses: actions/upload-artifact@v7
         with:
-          name: beta-macos
+          name: WattSeal-macos-beta
           path: WattSeal-macos
