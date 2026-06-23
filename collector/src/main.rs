@@ -5,15 +5,7 @@ fn main() {
         common::clog!("⚠ Failed to set working directory to executable directory: {}", e);
     }
 
-    let _singleton = match common::SingletonGuard::acquire(common::DATABASE_PATH) {
-        Ok(guard) => guard,
-        Err(msg) => {
-            common::clog!("✗ {msg}");
-            return;
-        }
-    };
-
-    let mut app = match CollectorApp::new(true, None) {
+    let mut app = match CollectorApp::new(None) {
         Ok(app) => app,
         Err(e) => {
             common::clog!("✗ Failed to create CollectorApp: {}", e);

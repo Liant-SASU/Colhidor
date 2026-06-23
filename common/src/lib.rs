@@ -1,6 +1,4 @@
-pub mod database;
 pub mod logging;
-pub mod singleton;
 pub mod types;
 pub mod utils;
 
@@ -15,22 +13,8 @@ macro_rules! clog {
     }};
 }
 
-pub use database::{
-    DATABASE_PATH, Database, DatabaseEntry, DatabaseError, UiSettings, generic_name_for_table,
-    types::{
-        AllTimeDataDB, CPUDataDB, DataDB, DiskDataDB, EventDB, GPUDataDB, IconData, LabeledValue, MetricKindDB,
-        NetworkDataDB, ProcessDataDB, RamDataDB, SecondaryValues, SensorDataDB, TotalDataDB,
-    },
-};
-pub use singleton::SingletonGuard;
 pub use types::{
     AllTimeData, Byte, CPUData, DiskData, EnergyUj, EnergyWh, Event, GPUData, GeneralData, HardwareInfo,
     MICROJOULES_PER_JOULE, NetworkData, PowerW, RamData, SECONDS_PER_HOUR, SensorData, SensorKind,
 };
 pub use utils::set_current_dir_to_exe_dir;
-
-/// Exit code the UI subprocess uses to signal "stop the collector too".
-pub const EXIT_CODE_SHUTDOWN_ALL: i32 = 42;
-
-pub const WINDOW_ICON_BYTES: &[u8] = include_bytes!("../../resources/icon.png");
-pub const WINDOW_ICON_TYPE: image::ImageFormat = image::ImageFormat::Png;

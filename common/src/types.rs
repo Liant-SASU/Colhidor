@@ -387,6 +387,18 @@ pub struct BatteryInfo {
     pub cycle_count: Option<u32>,
 }
 
+impl SensorKind {
+    pub fn label(&self) -> &'static str {
+        match self {
+            SensorKind::CPU => "CPU",
+            SensorKind::GPU => "GPU",
+            SensorKind::Ram => "Ram",
+            SensorKind::Disk => "Disk",
+            SensorKind::Network => "Network",
+        }
+    }
+}
+
 impl<E: Clone> SensorData<E> {
     /// Returns the sensor kind of this sensor variant.
     pub fn sensor_kind(&self) -> SensorKind {
