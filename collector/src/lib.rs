@@ -1,4 +1,3 @@
-pub mod database;
 pub mod sensors;
 
 use std::{
@@ -12,18 +11,13 @@ use std::{
 pub use common::clog;
 #[cfg(not(debug_assertions))]
 use common::logging::start_log_session;
-use common::{
-    DatabaseEntry, EnergyWh, ProcessDataDB, SensorData, TotalDataDB,
-    database::{purge::averaging_and_purging_data, types::GeneralDataDB},
-};
-use database::{Database, consumption_event_to_eventdb};
+use common::{EnergyWh, SensorData};
 use mqtt::{
     MQTTPublisher,
     topics::{hardware_info_topic, sensor_data_to_topic},
 };
 use sensors::{
     DiskSensor, NetworkSensor, RamSensor, SensorType, create_event_from_sensors, get_hardware_info,
-    get_process_gpu_usage,
     gpu::{GPUVendor, get_gpu_list},
 };
 use sysinfo::System;
@@ -45,12 +39,10 @@ pub struct MQTTInfo {
 
 /// Background sensor-collection application.
 pub struct CollectorApp {
-    database: Option<Database>,
     mqtt_info: Option<MQTTInfo>,
     sensors: Vec<SensorType>,
     system: Rc<RefCell<System>>,
     last_update: Instant,
-    last_purge: Instant,
     #[cfg(debug_assertions)]
     iteration: u64,
 }
@@ -67,37 +59,20 @@ impl MQTTInfo {
 }
 
 impl CollectorApp {
-    /// Creates a new collector with a database connection.
-    pub fn new(enable_save_db: bool, mqtt_info: Option<MQTTInfo>) -> Result<Self, String> {
-        let database;
-        if enable_save_db {
-            database = Some(Database::new().map_err(|e| format!("Failed to create database: {e}"))?);
-        } else {
-            database = None
-        }
+    /// Creates a new collector.
+    pub fn new(mqtt_info: Option<MQTTInfo>) -> Result<Self, String> {
         let s = System::new_all();
         Ok(CollectorApp {
-            database,
             mqtt_info,
             sensors: Vec::new(),
             system: Rc::new(RefCell::new(s)),
             last_update: Instant::now(),
-            last_purge: Instant::now(),
             #[cfg(debug_assertions)]
             iteration: 0,
         })
     }
 
-    fn purge_and_average(&mut self) {
-        thread::spawn(|| {
-            if let Ok(mut db) = Database::new() {
-                let _ = averaging_and_purging_data(&mut db, 24, 24);
-            }
-        });
-        self.last_purge = Instant::now();
-    }
-
-    /// Detects hardware sensors, creates database tables, and saves hardware info.
+    /// Detects hardware sensors, and saves hardware info.
     pub fn initialize(&mut self) -> Result<(), String> {
         #[cfg(not(debug_assertions))]
         start_log_session();
@@ -174,29 +149,11 @@ impl CollectorApp {
         self.sensors.push(SensorType::Disk(DiskSensor::new()));
         self.sensors.push(SensorType::Network(NetworkSensor::new()));
 
-        if let Some(database) = &mut self.database {
-            // Database
-            crate::clog!("\n========== SETTING UP DATABASE ==========");
-            let mut table_names: Vec<&str> = self.sensors.iter().map(|s| s.table_name()).collect();
-            table_names.push(ProcessDataDB::table_name_static());
-            table_names.push(TotalDataDB::table_name_static());
-            database
-                .create_tables_if_not_exists(&table_names)
-                .map_err(|e| format!("Failed to create database tables: {e}"))?;
-            crate::clog!("✓ Database initialized");
-        }
-
         // Hardware info
         crate::clog!("\n========== GATHERING HARDWARE INFORMATION ==========\n");
         let info = get_hardware_info(&self.sensors);
 
-        if let Some(database) = &mut self.database {
-            let infodb = GeneralDataDB::from(info.clone());
-            match database.insert_hardware_info(&infodb) {
-                Ok(_) => crate::clog!("✓ Hardware info saved"),
-                Err(e) => crate::clog!("✗ Failed to save hardware info: {e}"),
-            }
-        }
+        // Publish hardware info on MQTT Broker
         if let Some(mqtt_info) = &self.mqtt_info {
             let topic = hardware_info_topic(&mqtt_info.id);
             match mqtt_info.publisher.publish(&topic, &info.hardware_info.serialized()) {
@@ -210,18 +167,10 @@ impl CollectorApp {
 
     /// Runs the collection loop, sampling sensors every second.
     pub fn run(&mut self) {
-        // Purge/averaging runs in a separate thread so collection starts immediately.
-        self.purge_and_average();
-
         #[cfg(debug_assertions)]
-        println!(
-            "\n========== POWER CONSUMPTION MONITORING ==========\nLogging to database every second. Press Ctrl+C to stop.\n"
-        );
+        println!("\n========== POWER CONSUMPTION MONITORING ==========\nPress Ctrl+C to stop.\n");
 
         loop {
-            if self.last_purge.elapsed() > Duration::from_secs(24 * 3600) {
-                self.purge_and_average();
-            }
             let start_time = Instant::now();
             let since_last_update = self.last_update.elapsed();
             self.last_update = start_time;
@@ -230,27 +179,6 @@ impl CollectorApp {
             println!("\n--- Iteration {} ---", self.iteration);
 
             let event = create_event_from_sensors(&self.sensors, since_last_update);
-
-            let proc_gpu_usage = get_process_gpu_usage(&self.sensors);
-
-            if let Some(database) = &mut self.database {
-                let eventdb = consumption_event_to_eventdb(&event, self.system.clone(), proc_gpu_usage);
-
-                #[cfg(debug_assertions)]
-                {
-                    let start = Instant::now();
-                    let result = database.insert_event_and_update_energy(&eventdb, 1);
-
-                    let duration = start.elapsed();
-                    match result {
-                        Ok(_) => println!("✓ Event data saved to database (took {:.2?})", duration),
-                        Err(e) => eprintln!("✗ Failed to save event data: {:?}", e),
-                    }
-                }
-
-                #[cfg(not(debug_assertions))]
-                let _ = database.insert_event_and_update_energy(&eventdb, 1);
-            }
 
             if let Some(mqtt_info) = &self.mqtt_info {
                 for sensor_data in event.data() {

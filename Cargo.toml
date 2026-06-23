@@ -18,7 +18,7 @@ path = "src/main.rs"
 
 [workspace]
 resolver = "3"
-members = ["collector", "ui", "common", "mqtt"]
+members = ["collector", "common", "mqtt"]
 
 [workspace.package]
 version = "1.0.2"
@@ -31,24 +31,10 @@ keywords = ["power", "energy", "monitoring", "carbon", "emissions", "sustainabil
 edition = "2024"
 description = "WattSeal is a tool to monitor and analyze the power consumption of your computer, providing insights into energy usage and carbon emissions."
 
-[target.'cfg(windows)'.build-dependencies]
-winres = "0.1"
-image = { version = "0.25", default-features = false, features = ["png", "ico"] }
-
 [dependencies]
 collector = { path = "collector" }
-ui = { path = "ui" }
 common = { path = "common" }
-tray-icon = { version = "0.24.0", default-features = false, features = ["gtk"] }
-chrono = "0.4.44"
-image = { version = "0.25", default-features = false, features = ["png"] }
 bpaf = { version = "0.9.26", features = ["derive", "dull-color"] }
-
-[target.'cfg(not(target_os = "linux"))'.dependencies]
-winit = "0.30.13"
-
-[target.'cfg(target_os = "linux")'.dependencies]
-gtk = "0.18"
 
 [profile.release]
 opt-level = 3

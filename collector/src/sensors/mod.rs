@@ -133,10 +133,10 @@ pub fn create_event_from_sensors(sensors: &Vec<SensorType>, since_last_update: D
             #[cfg(debug_assertions)]
             Err(e) => eprintln!("✗ Error reading sensor data: {:?}", e),
             #[cfg(not(debug_assertions))]
-            Err(e) => common::logging::log_component_error(
-                sensor.table_name(),
-                &format!("Failed to read sensor data: {:?}", e),
-            ),
+            Err(e) => {
+                let sensor_kind = sensor.sensor_kind().label();
+                common::logging::log_component_error(&sensor_kind, &format!("Failed to read sensor data: {:?}", e))
+            }
         }
     }
 
@@ -189,7 +189,7 @@ pub fn get_hardware_info(sensors: &Vec<SensorType>) -> GeneralData {
         match sensor.read_name() {
             Ok(name) => detected_materials.push(name),
             Err(SensorError::NotSupported) => {}
-            Err(e) => crate::clog!("✗ Failed to read sensor name for {}: {:?}", sensor.table_name(), e),
+            Err(e) => crate::clog!("✗ Failed to read sensor name for {}: {:?}", sensor.sensor_kind(), e),
         }
 
         match sensor.read_initial_info() {
@@ -197,7 +197,7 @@ pub fn get_hardware_info(sensors: &Vec<SensorType>) -> GeneralData {
             Err(SensorError::NotSupported) => {}
             Err(e) => crate::clog!(
                 "✗ Failed to read initial info for sensor {}: {:?}",
-                sensor.table_name(),
+                sensor.sensor_kind(),
                 e
             ),
         }
