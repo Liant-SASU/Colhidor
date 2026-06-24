@@ -46,8 +46,9 @@ impl<T: MQTTClient> MQTTPublisher<T> {
 
     /// Publish `data` to the self client `topic`
     pub fn publish(&self, topic: &str, data: &impl Serialize) -> Result<(), MQTTError> {
-        let payload = serde_json::to_vec(data).map_err(|_| MQTTError::SerializationError)?;
-        self.client.publish(topic, payload)
+        let bytes = bincode::serialize(&data).unwrap();
+
+        self.client.publish(topic, bytes)
     }
 }
 
@@ -77,7 +78,14 @@ impl MQTTPublisher<Client> {
 
 #[cfg(test)]
 mod tests {
+    use serde::{Deserialize, Serialize};
+
     use super::*;
+
+    #[derive(Serialize, Deserialize)]
+    struct TestData {
+        test_value: u32,
+    }
 
     #[test]
     fn test_valid_publish() {
@@ -90,7 +98,7 @@ mod tests {
             .returning(|_, _| Ok(()));
 
         let publisher = MQTTPublisher::new(mock);
-        let data = serde_json::json!({"test_value": 6});
+        let data = TestData { test_value: 6 };
 
         let result = publisher.publish(test_topic, &data);
 
@@ -129,7 +137,7 @@ mod tests {
             .returning(|_, _| Err(MQTTError::PublishError));
 
         let publisher = MQTTPublisher::new(mock);
-        let data = serde_json::json!({"test_value": 6});
+        let data = TestData { test_value: 6 };
 
         let result = publisher.publish(test_topic, &data);
 
