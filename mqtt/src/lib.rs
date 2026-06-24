@@ -14,6 +14,8 @@ pub enum MQTTError {
 
 pub const MAX_INCOMING_PACKET_SIZE: usize = 1 * 1024 * 1024; // 1 Mo
 pub const MAX_OUTCOMING_PACKET_SIZE: usize = 1 * 1024 * 1024; // 1 Mo
+pub const CLIENT_CHANNEL_CAPACITY: usize = 10;
+pub const KEEP_ALIVE_SECS: Duration = Duration::from_secs(5);
 
 impl fmt::Display for MQTTError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -62,10 +64,10 @@ impl MQTTPublisher<Client> {
         let port = addr.port();
 
         let mut options = MqttOptions::new("mqtt_broker", host, port);
-        options.set_keep_alive(Duration::from_secs(5));
+        options.set_keep_alive(KEEP_ALIVE_SECS);
         options.set_max_packet_size(MAX_INCOMING_PACKET_SIZE, MAX_OUTCOMING_PACKET_SIZE);
 
-        let (client, mut connection) = Client::new(options, 10);
+        let (client, mut connection) = Client::new(options, CLIENT_CHANNEL_CAPACITY);
 
         std::thread::spawn(move || {
             for event in connection.iter() {
