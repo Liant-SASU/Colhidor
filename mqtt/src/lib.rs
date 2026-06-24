@@ -12,6 +12,9 @@ pub enum MQTTError {
     PublishError,
 }
 
+pub const MAX_INCOMING_PACKET_SIZE: usize = 1 * 1024 * 1024; // 1 Mo
+pub const MAX_OUTCOMING_PACKET_SIZE: usize = 1 * 1024 * 1024; // 1 Mo
+
 impl fmt::Display for MQTTError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -60,6 +63,7 @@ impl MQTTPublisher<Client> {
 
         let mut options = MqttOptions::new("mqtt_broker", host, port);
         options.set_keep_alive(Duration::from_secs(5));
+        options.set_max_packet_size(MAX_INCOMING_PACKET_SIZE, MAX_OUTCOMING_PACKET_SIZE);
 
         let (client, mut connection) = Client::new(options, 10);
 
