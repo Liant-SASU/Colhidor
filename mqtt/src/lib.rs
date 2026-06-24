@@ -4,7 +4,7 @@ use std::{fmt, net::SocketAddr, time::Duration};
 
 use mockall::automock;
 use rumqttc::{Client, MqttOptions, QoS};
-use serde::ser::Serialize;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug)]
 pub enum MQTTError {
@@ -16,6 +16,12 @@ pub const MAX_INCOMING_PACKET_SIZE: usize = 1 * 1024 * 1024; // 1 Mo
 pub const MAX_OUTCOMING_PACKET_SIZE: usize = 1 * 1024 * 1024; // 1 Mo
 pub const CLIENT_CHANNEL_CAPACITY: usize = 10;
 pub const KEEP_ALIVE_SECS: Duration = Duration::from_secs(5);
+
+#[derive(Serialize, Deserialize)]
+pub struct TimestampedData<T> {
+    pub timestamp: u64,
+    pub data: T,
+}
 
 impl fmt::Display for MQTTError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -49,9 +55,10 @@ impl<T: MQTTClient> MQTTPublisher<T> {
         Self { client }
     }
 
-    /// Publish `data` to the self client `topic`
-    pub fn publish(&self, topic: &str, data: &impl Serialize) -> Result<(), MQTTError> {
-        let bytes = bincode::serialize(&data).unwrap();
+    /// Publish `data` with milliseconds timestamp, to the self client `topic`
+    pub fn publish(&self, topic: &str, data: &impl Serialize, timestamp: u64) -> Result<(), MQTTError> {
+        let timestamped_data = TimestampedData { data, timestamp };
+        let bytes = bincode::serialize(&timestamped_data).unwrap();
 
         self.client.publish(topic, bytes)
     }
@@ -84,8 +91,6 @@ impl MQTTPublisher<Client> {
 
 #[cfg(test)]
 mod tests {
-    use serde::{Deserialize, Serialize};
-
     use super::*;
 
     #[derive(Serialize, Deserialize)]
@@ -106,7 +111,7 @@ mod tests {
         let publisher = MQTTPublisher::new(mock);
         let data = TestData { test_value: 6 };
 
-        let result = publisher.publish(test_topic, &data);
+        let result = publisher.publish(test_topic, &data, 0);
 
         assert!(result.is_ok());
     }
@@ -127,7 +132,7 @@ mod tests {
 
         let publisher = MQTTPublisher::new(mock);
 
-        let result = publisher.publish(test_topic, &NotSerializable);
+        let result = publisher.publish(test_topic, &NotSerializable, 0);
 
         assert!(matches!(result, Err(MQTTError::SerializationError)))
     }
@@ -145,7 +150,7 @@ mod tests {
         let publisher = MQTTPublisher::new(mock);
         let data = TestData { test_value: 6 };
 
-        let result = publisher.publish(test_topic, &data);
+        let result = publisher.publish(test_topic, &data, 0);
 
         assert!(matches!(result, Err(MQTTError::PublishError)));
     }
