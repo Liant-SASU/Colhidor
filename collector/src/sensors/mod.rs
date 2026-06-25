@@ -2,6 +2,7 @@ pub mod cpu;
 pub mod disk;
 pub mod gpu;
 pub mod network;
+pub mod processes;
 pub mod ram;
 
 use std::{
@@ -10,6 +11,7 @@ use std::{
 };
 
 use battery::Manager;
+use common::ProcessID;
 pub use common::{
     AllTimeData, EnergyUj, Event, GPUData, GeneralData, SensorData,
     types::{BatteryInfo, CpuInfo, DiskInfo, HardwareInfo, InitialInfo, MemoryInfo, SensorKind, SystemInfo},
@@ -21,6 +23,8 @@ pub use network::NetworkSensor;
 pub use ram::RamSensor;
 use sysinfo::System;
 
+use crate::sensors::processes::ProcessesSensor;
+
 /// Variant wrapper for all supported sensor.
 pub enum SensorType {
     CPU(CPUSensor),
@@ -28,6 +32,7 @@ pub enum SensorType {
     RAM(RamSensor),
     Disk(DiskSensor),
     Network(NetworkSensor),
+    Processes(ProcessesSensor),
 }
 
 impl SensorType {
@@ -39,6 +44,7 @@ impl SensorType {
             SensorType::RAM(_) => SensorKind::Ram,
             SensorType::Disk(_) => SensorKind::Disk,
             SensorType::Network(_) => SensorKind::Network,
+            SensorType::Processes(_) => SensorKind::Processes,
         }
     }
 }
@@ -51,6 +57,7 @@ impl Sensor for SensorType {
             SensorType::RAM(sensor) => sensor.read_full_data(),
             SensorType::Disk(sensor) => sensor.read_full_data(),
             SensorType::Network(sensor) => sensor.read_full_data(),
+            SensorType::Processes(sensor) => sensor.read_full_data(),
         }
     }
 
@@ -61,6 +68,7 @@ impl Sensor for SensorType {
             SensorType::RAM(sensor) => sensor.read_initial_info(),
             SensorType::Disk(sensor) => sensor.read_initial_info(),
             SensorType::Network(_) => Err(SensorError::NotSupported),
+            SensorType::Processes(_) => Err(SensorError::NotSupported),
         }
     }
 
@@ -71,6 +79,7 @@ impl Sensor for SensorType {
             SensorType::Disk(sensor) => sensor.read_name(),
             SensorType::Network(sensor) => sensor.read_name(),
             SensorType::RAM(_) => Err(SensorError::NotSupported),
+            SensorType::Processes(_) => Err(SensorError::NotSupported),
         }
     }
 }
@@ -172,6 +181,7 @@ pub fn create_event_from_sensors(sensors: &Vec<SensorType>, since_last_update: D
         }
     }
 
+    update_process_gpu_usage(sensors, &mut data);
     return Event::new(time, data);
 }
 
@@ -261,7 +271,7 @@ pub fn get_hardware_info(sensors: &Vec<SensorType>) -> GeneralData {
     return data;
 }
 
-pub fn get_process_gpu_usage(sensors: &Vec<SensorType>) -> HashMap<u32, f64> {
+pub fn update_process_gpu_usage(sensors: &Vec<SensorType>, sensors_data: &mut Vec<SensorData>) {
     let time = SystemTime::now();
     let mut proc_gpu_usage = HashMap::new();
 
@@ -279,6 +289,25 @@ pub fn get_process_gpu_usage(sensors: &Vec<SensorType>) -> HashMap<u32, f64> {
             _ => {}
         }
     }
-
-    proc_gpu_usage
+    let mut id_to_pid: HashMap<ProcessID, u32> = HashMap::new();
+    for sensor in sensors {
+        match sensor {
+            SensorType::Processes(processes_sensor) => {
+                id_to_pid.extend(processes_sensor.pid_to_id().into_iter().map(|(pid, key)| (key, pid)));
+            }
+            _ => {}
+        }
+    }
+    for sensor_data in sensors_data.iter_mut() {
+        match sensor_data {
+            SensorData::Processes(processes_data) => {
+                for process_data in processes_data.0.iter_mut() {
+                    if let Some(pid) = id_to_pid.get(&process_data.process_id) {
+                        process_data.gpu_usage = proc_gpu_usage.get(pid).copied();
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
 }

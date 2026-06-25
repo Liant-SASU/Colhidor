@@ -234,6 +234,27 @@ pub struct NetworkData<E = EnergyUj> {
     pub uploaded_bytes: Byte,
 }
 
+/// Process identifier
+#[derive(Debug, PartialEq, Eq, Clone, Serialize, Hash)]
+pub struct ProcessID(pub u64);
+
+/// Process identifier, heredity, usage and thoughput readings
+#[derive(Debug, Clone, Serialize)]
+pub struct ProcessData {
+    pub process_id: ProcessID,
+    pub name: String,
+    pub parent: Option<ProcessID>,
+    pub exe_path: Option<String>,
+    pub cpu_usage: Option<f64>,
+    pub gpu_usage: Option<f64>,
+    pub ram_usage: Option<f64>,
+    pub read_bytes: Option<u64>,
+    pub written_bytes: Option<u64>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ProcessesData(pub Vec<ProcessData>);
+
 /// Tagged union of all sensor reading types.
 #[derive(Debug, Clone, Serialize)]
 pub enum SensorData<E = EnergyUj> {
@@ -242,6 +263,7 @@ pub enum SensorData<E = EnergyUj> {
     Ram(RamData<E>),
     Disk(DiskData<E>),
     Network(NetworkData<E>),
+    Processes(ProcessesData),
 }
 
 /// Sensor component category type.
@@ -252,6 +274,7 @@ pub enum SensorKind {
     Ram,
     Disk,
     Network,
+    Processes,
 }
 
 /// Hardware information variant collected at startup.
@@ -381,6 +404,7 @@ impl SensorKind {
             SensorKind::Ram => "Ram",
             SensorKind::Disk => "Disk",
             SensorKind::Network => "Network",
+            SensorKind::Processes => "Processes",
         }
     }
 }
@@ -394,10 +418,11 @@ impl<E: Clone> SensorData<E> {
             SensorData::Ram(_) => SensorKind::Ram,
             SensorData::Disk(_) => SensorKind::Disk,
             SensorData::Network(_) => SensorKind::Network,
+            SensorData::Processes(_) => SensorKind::Processes,
         }
     }
 
-    /// Returns the total energy in , if available.
+    /// Returns the total energy, if available.
     pub fn total_energy(&self) -> Option<E> {
         match self {
             SensorData::CPU(data) => data.total_energy.clone(),
@@ -405,6 +430,7 @@ impl<E: Clone> SensorData<E> {
             SensorData::Ram(data) => data.total_energy.clone(),
             SensorData::Disk(data) => data.total_energy.clone(),
             SensorData::Network(data) => data.total_energy.clone(),
+            SensorData::Processes(_) => None,
         }
     }
 }
@@ -417,6 +443,7 @@ impl Display for SensorKind {
             SensorKind::Ram => write!(f, "Ram"),
             SensorKind::Disk => write!(f, "Disk"),
             SensorKind::Network => write!(f, "Network"),
+            SensorKind::Processes => write!(f, "Processes"),
         }
     }
 }
@@ -540,6 +567,40 @@ impl<T: Display> Display for SensorData<T> {
                 writeln!(f, "  Uploaded Bytes:   {:.2} MB/s", data.uploaded_bytes)?;
                 Ok(())
             }
+            SensorData::Processes(data) => {
+                writeln!(f, "Processes Data:")?;
+                for p in data.0.iter() {
+                    writeln!(f, " - {} (ID: {}):", p.name, p.process_id.0)?;
+
+                    if let Some(ref parent) = p.parent {
+                        writeln!(f, "       Parent ID: {}", parent.0)?;
+                    }
+
+                    if let Some(ref exe) = p.exe_path {
+                        writeln!(f, "       Path exe: {}", exe)?;
+                    }
+
+                    if let Some(cpu) = p.cpu_usage {
+                        writeln!(f, "       CPU Usage: {:.2}%", cpu)?;
+                    }
+
+                    if let Some(gpu) = p.gpu_usage {
+                        writeln!(f, "       GPU Usage: {:.2}%", gpu)?;
+                    }
+
+                    if let Some(ram) = p.ram_usage {
+                        writeln!(f, "       RAM Usage: {:.2}%", ram)?;
+                    }
+
+                    if let Some(ref read_bytes) = p.read_bytes {
+                        writeln!(f, "       Read Bytes: {} B", read_bytes)?;
+                    }
+                    if let Some(ref written_bytes) = p.written_bytes {
+                        writeln!(f, "       Written Bytes: {} B", written_bytes)?;
+                    }
+                }
+                Ok(())
+            }
         }
     }
 }
@@ -631,6 +692,7 @@ impl SensorData {
             SensorData::Ram(ramdata) => SensorData::Ram(ramdata.to_wh()),
             SensorData::Disk(diskdata) => SensorData::Disk(diskdata.to_wh()),
             SensorData::Network(networkdata) => SensorData::Network(networkdata.to_wh()),
+            SensorData::Processes(processesdata) => SensorData::Processes(processesdata.clone()),
         }
     }
 }
