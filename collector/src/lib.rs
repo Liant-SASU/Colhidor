@@ -167,15 +167,18 @@ impl CollectorApp {
 
         // Publish hardware info on MQTT Broker
         if let Some(mqtt_info) = &self.mqtt_info {
-            let timestamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
-            let topic = hardware_info_topic(&mqtt_info.id);
-            // TODO Change it by real timestamp
-            match mqtt_info
-                .publisher
-                .publish(&topic, &info.hardware_info.serialized(), timestamp)
-            {
-                Ok(_) => crate::clog!("✓ Hardware info published on broker"),
-                Err(e) => crate::clog!("✗ Failed to publish hardware info: {e}"),
+            if let Ok(timestamp) = SystemTime::now().duration_since(UNIX_EPOCH).map(|t| t.as_secs()) {
+                let topic = hardware_info_topic(&mqtt_info.id);
+
+                match mqtt_info
+                    .publisher
+                    .publish(&topic, &info.hardware_info.serialized(), timestamp)
+                {
+                    Ok(_) => crate::clog!("✓ Hardware info published on broker"),
+                    Err(e) => crate::clog!("✗ Failed to publish hardware info: {e}"),
+                }
+            } else {
+                crate::clog!("✗ Failed to get system time and timestamped hardware info publishing");
             }
         }
         crate::clog!("Initialization complete");
@@ -227,7 +230,10 @@ impl CollectorApp {
 
         loop {
             interval.tick().await;
-            let timestamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
+            let Ok(timestamp) = SystemTime::now().duration_since(UNIX_EPOCH).map(|t| t.as_secs()) else {
+                crate::clog!("✗ Failed to get system time for timestamp and stop collector run");
+                return;
+            };
 
             if let Some(last_timestamp) = self.last_timestamp {
                 let since_last_update = Duration::from_secs(timestamp - last_timestamp);
