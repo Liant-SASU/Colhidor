@@ -165,7 +165,8 @@ impl CollectorApp {
         // Publish hardware info on MQTT Broker
         if let Some(mqtt_info) = &self.mqtt_info {
             let topic = hardware_info_topic(&mqtt_info.id);
-            match mqtt_info.publisher.publish(&topic, &info.hardware_info.serialized()) {
+            // TODO Change it by real timestamp
+            match mqtt_info.publisher.publish(&topic, &info.hardware_info.serialized(), 0) {
                 Ok(_) => crate::clog!("✓ Hardware info published on broker"),
                 Err(e) => crate::clog!("✗ Failed to publish hardware info: {e}"),
             }
@@ -194,12 +195,13 @@ impl CollectorApp {
                     let topic = sensor_data_to_topic(&mqtt_info.id, &sensor_data);
 
                     let _result = mqtt_info.unit.map_or_else(
-                        || mqtt_info.publisher.publish(&topic, sensor_data),
+                        // TODO Change 0 value by real timestamp
+                        || mqtt_info.publisher.publish(&topic, sensor_data, 0),
                         |u| match u {
-                            ConsumptionUnit::UJoul => mqtt_info.publisher.publish(&topic, &sensor_data),
+                            ConsumptionUnit::UJoul => mqtt_info.publisher.publish(&topic, &sensor_data, 0),
                             ConsumptionUnit::WattHour => {
                                 let sensor_data_wh: SensorData<EnergyWh> = sensor_data.to_wh();
-                                mqtt_info.publisher.publish(&topic, &sensor_data_wh)
+                                mqtt_info.publisher.publish(&topic, &sensor_data_wh, 0)
                             }
                         },
                     );

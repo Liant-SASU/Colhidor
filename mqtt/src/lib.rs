@@ -4,12 +4,24 @@ use std::{fmt, net::SocketAddr, time::Duration};
 
 use mockall::automock;
 use rumqttc::{Client, MqttOptions, QoS};
-use serde::ser::Serialize;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug)]
 pub enum MQTTError {
     SerializationError,
     PublishError,
+}
+
+pub const MAX_INCOMING_PACKET_SIZE: usize = 1 * 1024 * 1024; // 1 Mo
+pub const MAX_OUTCOMING_PACKET_SIZE: usize = 1 * 1024 * 1024; // 1 Mo
+pub const CLIENT_CHANNEL_CAPACITY: usize = 10;
+pub const KEEP_ALIVE_SECS: Duration = Duration::from_secs(5);
+
+/// Data with a timestamp in seconds
+#[derive(Serialize, Deserialize)]
+pub struct TimestampedData<T> {
+    pub timestamp: u64,
+    pub data: T,
 }
 
 impl fmt::Display for MQTTError {
@@ -44,10 +56,12 @@ impl<T: MQTTClient> MQTTPublisher<T> {
         Self { client }
     }
 
-    /// Publish `data` to the self client `topic`
-    pub fn publish(&self, topic: &str, data: &impl Serialize) -> Result<(), MQTTError> {
-        let payload = serde_json::to_vec(data).map_err(|_| MQTTError::SerializationError)?;
-        self.client.publish(topic, payload)
+    /// Publish `data` with milliseconds timestamp, to the self client `topic`
+    pub fn publish(&self, topic: &str, data: &impl Serialize, timestamp: u64) -> Result<(), MQTTError> {
+        let timestamped_data = TimestampedData { data, timestamp };
+        let bytes = bincode::serialize(&timestamped_data).unwrap();
+
+        self.client.publish(topic, bytes)
     }
 }
 
@@ -58,9 +72,10 @@ impl MQTTPublisher<Client> {
         let port = addr.port();
 
         let mut options = MqttOptions::new("mqtt_broker", host, port);
-        options.set_keep_alive(Duration::from_secs(5));
+        options.set_keep_alive(KEEP_ALIVE_SECS);
+        options.set_max_packet_size(MAX_INCOMING_PACKET_SIZE, MAX_OUTCOMING_PACKET_SIZE);
 
-        let (client, mut connection) = Client::new(options, 10);
+        let (client, mut connection) = Client::new(options, CLIENT_CHANNEL_CAPACITY);
 
         std::thread::spawn(move || {
             for event in connection.iter() {
@@ -79,6 +94,11 @@ impl MQTTPublisher<Client> {
 mod tests {
     use super::*;
 
+    #[derive(Serialize, Deserialize)]
+    struct TestData {
+        test_value: u32,
+    }
+
     #[test]
     fn test_valid_publish() {
         let test_topic = "wattseal_collector/CPU";
@@ -90,9 +110,9 @@ mod tests {
             .returning(|_, _| Ok(()));
 
         let publisher = MQTTPublisher::new(mock);
-        let data = serde_json::json!({"test_value": 6});
+        let data = TestData { test_value: 6 };
 
-        let result = publisher.publish(test_topic, &data);
+        let result = publisher.publish(test_topic, &data, 0);
 
         assert!(result.is_ok());
     }
@@ -113,7 +133,7 @@ mod tests {
 
         let publisher = MQTTPublisher::new(mock);
 
-        let result = publisher.publish(test_topic, &NotSerializable);
+        let result = publisher.publish(test_topic, &NotSerializable, 0);
 
         assert!(matches!(result, Err(MQTTError::SerializationError)))
     }
@@ -129,9 +149,9 @@ mod tests {
             .returning(|_, _| Err(MQTTError::PublishError));
 
         let publisher = MQTTPublisher::new(mock);
-        let data = serde_json::json!({"test_value": 6});
+        let data = TestData { test_value: 6 };
 
-        let result = publisher.publish(test_topic, &data);
+        let result = publisher.publish(test_topic, &data, 0);
 
         assert!(matches!(result, Err(MQTTError::PublishError)));
     }
