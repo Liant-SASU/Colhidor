@@ -1609,7 +1609,6 @@ dependencies = [
  "bpaf",
  "collector",
  "common",
- "winres",
  "tokio",
  "winres",
 ]
