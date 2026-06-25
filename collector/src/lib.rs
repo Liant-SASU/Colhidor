@@ -185,6 +185,7 @@ impl CollectorApp {
         Ok(())
     }
 
+    /// Publish event sensors data with given timestamp on the collector mqtt client
     fn publish_event_data(&self, event: &Event, timestamp: u64) {
         if let Some(mqtt_info) = &self.mqtt_info {
             for sensor_data in event.data() {
