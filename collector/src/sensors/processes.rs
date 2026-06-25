@@ -1,6 +1,6 @@
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
-use common::{ProcDiskInfo, ProcessData, ProcessID, ProcessesData, SensorData};
+use common::{ProcessData, ProcessID, ProcessesData, SensorData};
 use sysinfo::System;
 
 use crate::sensors::{Sensor, SensorError};
@@ -9,14 +9,18 @@ use crate::sensors::{Sensor, SensorError};
 pub struct ProcessesSensor {
     system: Rc<RefCell<System>>,
     machine_name: String,
+    pid_to_id: RefCell<HashMap<u32, ProcessID>>,
 }
 
 impl ProcessesSensor {
     /// Creates a sensor sharing the given `System` handle and using the given machine name.
     pub fn new(system: Rc<RefCell<System>>, machine_name: String) -> Self {
-        Self { system, machine_name }
+        Self {
+            system,
+            machine_name,
+            pid_to_id: RefCell::new(HashMap::new()),
+        }
     }
-}
 
     pub fn pid_to_id(&self) -> HashMap<u32, ProcessID> {
         self.pid_to_id.borrow().clone()
@@ -39,7 +43,7 @@ impl ProcessKey {
         }
     }
 
-/// Hash the process key to obtain a unique id
+    /// Hash the process key to obtain a unique id
     fn into_process_id(&self) -> ProcessID {
         let mut hasher = blake3::Hasher::new();
 
@@ -79,11 +83,12 @@ impl Sensor for ProcessesSensor {
         let processes = sys.processes();
 
         // Firstly computes processes key to be able to identify processes parent with ProcessID
+        self.pid_to_id.borrow_mut().clear();
         for (pid, proc) in processes {
             let name = proc.name().to_str().unwrap_or("__unknown").to_string();
             let key = ProcessKey::new(self.machine_name.to_string(), name.clone(), pid.as_u32());
             let process_id = key.into_process_id();
-            pid_to_id.insert(pid.as_u32(), process_id);
+            self.pid_to_id.borrow_mut().insert(pid.as_u32(), process_id);
         }
 
         let mut processes_data = Vec::new();

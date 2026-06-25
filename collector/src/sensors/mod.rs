@@ -11,6 +11,7 @@ use std::{
 };
 
 use battery::Manager;
+use common::ProcessID;
 pub use common::{
     AllTimeData, EnergyUj, Event, GPUData, GeneralData, SensorData,
     types::{BatteryInfo, CpuInfo, DiskInfo, HardwareInfo, InitialInfo, MemoryInfo, SensorKind, SystemInfo},
@@ -180,6 +181,7 @@ pub fn create_event_from_sensors(sensors: &Vec<SensorType>, since_last_update: D
         }
     }
 
+    update_process_gpu_usage(sensors, &mut data);
     return Event::new(time, data);
 }
 
@@ -269,7 +271,7 @@ pub fn get_hardware_info(sensors: &Vec<SensorType>) -> GeneralData {
     return data;
 }
 
-pub fn get_process_gpu_usage(sensors: &Vec<SensorType>) -> HashMap<u32, f64> {
+pub fn update_process_gpu_usage(sensors: &Vec<SensorType>, sensors_data: &mut Vec<SensorData>) {
     let time = SystemTime::now();
     let mut proc_gpu_usage = HashMap::new();
 
@@ -287,6 +289,25 @@ pub fn get_process_gpu_usage(sensors: &Vec<SensorType>) -> HashMap<u32, f64> {
             _ => {}
         }
     }
-
-    proc_gpu_usage
+    let mut id_to_pid: HashMap<ProcessID, u32> = HashMap::new();
+    for sensor in sensors {
+        match sensor {
+            SensorType::Processes(processes_sensor) => {
+                id_to_pid.extend(processes_sensor.pid_to_id().into_iter().map(|(pid, key)| (key, pid)));
+            }
+            _ => {}
+        }
+    }
+    for sensor_data in sensors_data.iter_mut() {
+        match sensor_data {
+            SensorData::Processes(processes_data) => {
+                for process_data in processes_data.0.iter_mut() {
+                    if let Some(pid) = id_to_pid.get(&process_data.process_id) {
+                        process_data.gpu_usage = proc_gpu_usage.get(pid).copied();
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
 }
