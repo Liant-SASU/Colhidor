@@ -35,9 +35,11 @@ description = "WattSeal is a tool to monitor and analyze the power consumption o
 collector = { path = "collector" }
 common = { path = "common" }
 bpaf = { version = "0.9.26", features = ["derive", "dull-color"] }
+tokio = "1.52.3"
 
 [target.'cfg(windows)'.build-dependencies]
 winres = "0.1"
+tokio = "1.52.3"
 
 [profile.release]
 opt-level = 3

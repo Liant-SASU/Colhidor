@@ -4,14 +4,13 @@ use std::{
     cell::RefCell,
     net::SocketAddr,
     rc::Rc,
-    thread,
-    time::{Duration, Instant, SystemTime},
+    time::{SystemTime, UNIX_EPOCH},
 };
 
 pub use common::clog;
 #[cfg(not(debug_assertions))]
 use common::logging::start_log_session;
-use common::{EnergyWh, SensorData};
+use common::{EnergyWh, Event, SensorData};
 use mqtt::{
     MQTTPublisher,
     topics::{hardware_info_topic, sensor_data_to_topic},
@@ -21,6 +20,7 @@ use sensors::{
     gpu::{GPUVendor, get_gpu_list},
 };
 use sysinfo::System;
+use tokio::time::{Duration, Instant, interval, sleep_until};
 
 use crate::sensors::processes::ProcessesSensor;
 
@@ -44,7 +44,8 @@ pub struct CollectorApp {
     mqtt_info: Option<MQTTInfo>,
     sensors: Vec<SensorType>,
     system: Rc<RefCell<System>>,
-    last_update: Instant,
+    capture_interval: u64,
+    last_timestamp: Option<u64>,
     #[cfg(debug_assertions)]
     iteration: u64,
 }
@@ -62,13 +63,15 @@ impl MQTTInfo {
 
 impl CollectorApp {
     /// Creates a new collector.
-    pub fn new(mqtt_info: Option<MQTTInfo>) -> Result<Self, String> {
+    pub fn new(capture_interval: u64, mqtt_info: Option<MQTTInfo>) -> Result<Self, String> {
         let s = System::new_all();
+
         Ok(CollectorApp {
             mqtt_info,
             sensors: Vec::new(),
             system: Rc::new(RefCell::new(s)),
-            last_update: Instant::now(),
+            capture_interval,
+            last_timestamp: None,
             #[cfg(debug_assertions)]
             iteration: 0,
         })
@@ -164,77 +167,100 @@ impl CollectorApp {
 
         // Publish hardware info on MQTT Broker
         if let Some(mqtt_info) = &self.mqtt_info {
-            let topic = hardware_info_topic(&mqtt_info.id);
-            // TODO Change it by real timestamp
-            match mqtt_info.publisher.publish(&topic, &info.hardware_info.serialized(), 0) {
-                Ok(_) => crate::clog!("✓ Hardware info published on broker"),
-                Err(e) => crate::clog!("✗ Failed to publish hardware info: {e}"),
+            if let Ok(timestamp) = SystemTime::now().duration_since(UNIX_EPOCH).map(|t| t.as_secs()) {
+                let topic = hardware_info_topic(&mqtt_info.id);
+
+                match mqtt_info
+                    .publisher
+                    .publish(&topic, &info.hardware_info.serialized(), timestamp)
+                {
+                    Ok(_) => crate::clog!("✓ Hardware info published on broker"),
+                    Err(e) => crate::clog!("✗ Failed to publish hardware info: {e}"),
+                }
+            } else {
+                crate::clog!("✗ Failed to get system time and timestamped hardware info publishing");
             }
         }
         crate::clog!("Initialization complete");
         Ok(())
     }
 
-    /// Runs the collection loop, sampling sensors every second.
-    pub fn run(&mut self) {
+    /// Publish event sensors data with given timestamp on the collector mqtt client
+    fn publish_event_data(&self, event: &Event, timestamp: u64) {
+        if let Some(mqtt_info) = &self.mqtt_info {
+            for sensor_data in event.data() {
+                let topic = sensor_data_to_topic(&mqtt_info.id, &sensor_data);
+
+                let _result = mqtt_info.unit.map_or_else(
+                    || mqtt_info.publisher.publish(&topic, sensor_data, timestamp),
+                    |u| match u {
+                        ConsumptionUnit::UJoul => mqtt_info.publisher.publish(&topic, &sensor_data, timestamp),
+                        ConsumptionUnit::WattHour => {
+                            let sensor_data_wh: SensorData<EnergyWh> = sensor_data.to_wh();
+                            mqtt_info.publisher.publish(&topic, &sensor_data_wh, timestamp)
+                        }
+                    },
+                );
+                #[cfg(debug_assertions)]
+                match _result {
+                    Ok(_) => println!("✓ Sensor data published on topic {}", topic),
+                    Err(e) => eprintln!("✗ Failed to publish sensor data on topic {}: {:?}", topic, e),
+                }
+            }
+        }
+    }
+
+    /// Runs the collection loop, sampling sensors every capture interval second.
+    pub async fn run(&mut self) {
         #[cfg(debug_assertions)]
         println!("\n========== POWER CONSUMPTION MONITORING ==========\nPress Ctrl+C to stop.\n");
 
+        let now_result = SystemTime::now().duration_since(UNIX_EPOCH);
+        let Ok(now) = now_result else {
+            crate::clog!("✗ Failed to get system time and stop collecting run");
+            return;
+        };
+
+        // To synchronize machines timestamp on the modulo
+        let remaining_secs = self.capture_interval - (now.as_secs() % self.capture_interval);
+        let remaining = Duration::from_secs(remaining_secs) - Duration::from_millis(now.subsec_millis() as u64);
+
+        sleep_until(Instant::now() + remaining).await;
+
+        let mut interval = interval(Duration::from_secs(self.capture_interval));
+
         loop {
-            let start_time = Instant::now();
-            let since_last_update = self.last_update.elapsed();
-            self.last_update = start_time;
+            interval.tick().await;
+            let Ok(timestamp) = SystemTime::now().duration_since(UNIX_EPOCH).map(|t| t.as_secs()) else {
+                crate::clog!("✗ Failed to get system time for timestamp and stop collector run");
+                return;
+            };
 
-            #[cfg(debug_assertions)]
-            println!("\n--- Iteration {} ---", self.iteration);
+            if let Some(last_timestamp) = self.last_timestamp {
+                let since_last_update = Duration::from_secs(timestamp - last_timestamp);
 
-            let event = create_event_from_sensors(&self.sensors, since_last_update);
+                #[cfg(debug_assertions)]
+                println!("\n--- Iteration {} (timestamp : {}) ---", self.iteration, timestamp);
 
-            if let Some(mqtt_info) = &self.mqtt_info {
+                let event = create_event_from_sensors(&self.sensors, since_last_update);
+
+                self.publish_event_data(&event, timestamp);
+
+                #[cfg(debug_assertions)]
                 for sensor_data in event.data() {
-                    let topic = sensor_data_to_topic(&mqtt_info.id, &sensor_data);
+                    println!("{sensor_data}");
+                }
 
-                    let _result = mqtt_info.unit.map_or_else(
-                        // TODO Change 0 value by real timestamp
-                        || mqtt_info.publisher.publish(&topic, sensor_data, 0),
-                        |u| match u {
-                            ConsumptionUnit::UJoul => mqtt_info.publisher.publish(&topic, &sensor_data, 0),
-                            ConsumptionUnit::WattHour => {
-                                let sensor_data_wh: SensorData<EnergyWh> = sensor_data.to_wh();
-                                mqtt_info.publisher.publish(&topic, &sensor_data_wh, 0)
-                            }
-                        },
-                    );
-                    #[cfg(debug_assertions)]
-                    match _result {
-                        Ok(_) => println!("✓ Sensor data published on topic {}", topic),
-                        Err(e) => eprintln!("✗ Failed to publish sensor data on topic {}: {:?}", topic, e),
+                #[cfg(debug_assertions)]
+                {
+                    self.iteration += 1;
+                    if since_last_update > Duration::from_secs(1) {
+                        eprintln!("WARNING: Iteration {} took longer than 1 second.", self.iteration);
                     }
                 }
             }
 
-            #[cfg(debug_assertions)]
-            for sensor_data in event.data() {
-                println!("{sensor_data}");
-            }
-
-            #[cfg(debug_assertions)]
-            {
-                self.iteration += 1;
-                if start_time.elapsed() > Duration::from_millis(1000) {
-                    eprintln!("WARNING: Iteration {} took longer than 1 second.", self.iteration);
-                }
-            }
-
-            // Adjust sleep duration to maintain 1 second interval
-            let now_sub_ms = SystemTime::now()
-                .duration_since(SystemTime::UNIX_EPOCH)
-                .unwrap_or(Duration::ZERO)
-                .as_millis()
-                % 1000;
-            if now_sub_ms < 1000 {
-                thread::sleep(Duration::from_millis(1000 - now_sub_ms as u64));
-            }
+            self.last_timestamp = Some(timestamp);
         }
     }
 }
