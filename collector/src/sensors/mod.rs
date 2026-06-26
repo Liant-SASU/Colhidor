@@ -20,10 +20,9 @@ pub use cpu::CPUSensor;
 pub use disk::DiskSensor;
 pub use gpu::{GPUSensor, get_gpu_list};
 pub use network::NetworkSensor;
+pub use processes::ProcessesSensor;
 pub use ram::RamSensor;
 use sysinfo::System;
-
-use crate::sensors::processes::ProcessesSensor;
 
 /// Variant wrapper for all supported sensor.
 pub enum SensorType {
