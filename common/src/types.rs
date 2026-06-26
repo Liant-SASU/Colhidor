@@ -248,8 +248,8 @@ pub struct ProcessData {
     pub cpu_usage: Option<f64>,
     pub gpu_usage: Option<f64>,
     pub ram_usage: Option<f64>,
-    pub read_bytes: Option<u64>,
-    pub written_bytes: Option<u64>,
+    pub read_bytes: Option<Byte>,
+    pub written_bytes: Option<Byte>,
 }
 
 #[derive(Debug, Clone, Serialize)]
