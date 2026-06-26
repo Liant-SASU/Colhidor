@@ -455,7 +455,7 @@ impl<T: Display> Display for SensorData<T> {
                 writeln!(f, "CPU Data:")?;
                 writeln!(
                     f,
-                    "  Energy PKG:  {}",
+                    "   Energy PKG:     {}",
                     data.total_energy
                         .as_ref()
                         .map(|c| format!("{c}"))
@@ -463,7 +463,7 @@ impl<T: Display> Display for SensorData<T> {
                 )?;
                 writeln!(
                     f,
-                    "  Energy PP0:  {}",
+                    "   Energy PP0:     {}",
                     data.pp0_energy
                         .as_ref()
                         .map(|c| format!("{c}"))
@@ -471,7 +471,7 @@ impl<T: Display> Display for SensorData<T> {
                 )?;
                 writeln!(
                     f,
-                    "  Energy PP1:  {}",
+                    "   Energy PP1:     {}",
                     data.pp1_energy
                         .as_ref()
                         .map(|c| format!("{c}"))
@@ -479,7 +479,7 @@ impl<T: Display> Display for SensorData<T> {
                 )?;
                 writeln!(
                     f,
-                    "  Energy DRAM: {}",
+                    "   Energy DRAM:    {}",
                     data.dram_energy
                         .as_ref()
                         .map(|c| format!("{c}"))
@@ -487,7 +487,7 @@ impl<T: Display> Display for SensorData<T> {
                 )?;
                 writeln!(
                     f,
-                    "  Usage:      {}",
+                    "   Usage:          {}",
                     data.usage_percent
                         .map(|u| format!("{:.2} %", u))
                         .unwrap_or_else(|| "N/A".to_string())
@@ -498,7 +498,7 @@ impl<T: Display> Display for SensorData<T> {
                 writeln!(f, "GPU Data:")?;
                 writeln!(
                     f,
-                    "  Energy:       {}",
+                    "   Energy:     {}",
                     data.total_energy
                         .as_ref()
                         .map(|c| format!("{c}"))
@@ -506,14 +506,14 @@ impl<T: Display> Display for SensorData<T> {
                 )?;
                 writeln!(
                     f,
-                    "  Usage:       {}",
+                    "   Usage:      {}",
                     data.usage_percent
                         .map(|u| format!("{:.2} %", u))
                         .unwrap_or_else(|| "N/A".to_string())
                 )?;
                 writeln!(
                     f,
-                    "  VRAM Usage:  {}",
+                    "   VRAM Usage: {}",
                     data.vram_usage_percent
                         .map(|u| format!("{:.2} %", u))
                         .unwrap_or_else(|| "N/A".to_string())
@@ -524,7 +524,7 @@ impl<T: Display> Display for SensorData<T> {
                 writeln!(f, "RAM Data:")?;
                 writeln!(
                     f,
-                    "  Consumption: {}",
+                    "   Energy: {}",
                     data.total_energy
                         .as_ref()
                         .map(|c| format!("{c}"))
@@ -532,7 +532,7 @@ impl<T: Display> Display for SensorData<T> {
                 )?;
                 writeln!(
                     f,
-                    " Usage: {}",
+                    "   Usage:  {}",
                     data.usage_percent
                         .map(|u| format!("{:.2} %", u))
                         .unwrap_or_else(|| "N/A".to_string())
@@ -543,28 +543,28 @@ impl<T: Display> Display for SensorData<T> {
                 writeln!(f, "Disk Data:")?;
                 writeln!(
                     f,
-                    "  Energy: {}",
+                    "   Energy:         {}",
                     data.total_energy
                         .as_ref()
                         .map(|c| format!("{c}"))
                         .unwrap_or_else(|| "N/A".to_string())
                 )?;
-                writeln!(f, "  Read Bytes:  {} B", data.read_bytes)?;
-                writeln!(f, "  Write Speed: {} B", data.written_bytes)?;
+                writeln!(f, "   Read Bytes:     {}", data.read_bytes)?;
+                writeln!(f, "   Write Bytes:    {}", data.written_bytes)?;
                 Ok(())
             }
             SensorData::Network(data) => {
                 writeln!(f, "Network Data:")?;
                 writeln!(
                     f,
-                    "  Energy:        {}",
+                    "   Energy:             {}",
                     data.total_energy
                         .as_ref()
                         .map(|c| format!("{c}"))
                         .unwrap_or_else(|| "N/A".to_string())
                 )?;
-                writeln!(f, "  Downloaded Bytes: {:.2} MB/s", data.downloaded_bytes)?;
-                writeln!(f, "  Uploaded Bytes:   {:.2} MB/s", data.uploaded_bytes)?;
+                writeln!(f, "   Downloaded Bytes:   {}", data.downloaded_bytes)?;
+                writeln!(f, "   Uploaded Bytes:     {}", data.uploaded_bytes)?;
                 Ok(())
             }
             SensorData::Processes(data) => {
@@ -573,30 +573,30 @@ impl<T: Display> Display for SensorData<T> {
                     writeln!(f, " - {} (ID: {}):", p.name, p.process_id.0)?;
 
                     if let Some(ref parent) = p.parent {
-                        writeln!(f, "       Parent ID: {}", parent.0)?;
+                        writeln!(f, "       Parent ID:      {}", parent.0)?;
                     }
 
                     if let Some(ref exe) = p.exe_path {
-                        writeln!(f, "       Path exe: {}", exe)?;
+                        writeln!(f, "       Path exe:       {}", exe)?;
                     }
 
                     if let Some(cpu) = p.cpu_usage {
-                        writeln!(f, "       CPU Usage: {:.2}%", cpu)?;
+                        writeln!(f, "       CPU Usage:      {:.2}%", cpu)?;
                     }
 
                     if let Some(gpu) = p.gpu_usage {
-                        writeln!(f, "       GPU Usage: {:.2}%", gpu)?;
+                        writeln!(f, "       GPU Usage:      {:.2}%", gpu)?;
                     }
 
                     if let Some(ram) = p.ram_usage {
-                        writeln!(f, "       RAM Usage: {:.2}%", ram)?;
+                        writeln!(f, "       RAM Usage:      {:.2}%", ram)?;
                     }
 
                     if let Some(ref read_bytes) = p.read_bytes {
-                        writeln!(f, "       Read Bytes: {} B", read_bytes)?;
+                        writeln!(f, "       Read Bytes:     {}", read_bytes)?;
                     }
                     if let Some(ref written_bytes) = p.written_bytes {
-                        writeln!(f, "       Written Bytes: {} B", written_bytes)?;
+                        writeln!(f, "       Written Bytes:  {}", written_bytes)?;
                     }
                 }
                 Ok(())
