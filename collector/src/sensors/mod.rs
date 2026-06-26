@@ -20,10 +20,9 @@ pub use cpu::CPUSensor;
 pub use disk::DiskSensor;
 pub use gpu::{GPUSensor, get_gpu_list};
 pub use network::NetworkSensor;
+pub use processes::ProcessesSensor;
 pub use ram::RamSensor;
 use sysinfo::System;
-
-use crate::sensors::processes::ProcessesSensor;
 
 /// Variant wrapper for all supported sensor.
 pub enum SensorType {
@@ -137,7 +136,7 @@ pub fn create_event_from_sensors(sensors: &Vec<SensorType>, since_last_update: D
                 data.push(d);
             }
             #[cfg(debug_assertions)]
-            Err(e) => eprintln!("✗ Error reading sensor data: {:?}", e),
+            Err(e) => eprintln!("✗ Error reading sensor {} data: {:?}", sensor.sensor_kind().label(), e),
             #[cfg(not(debug_assertions))]
             Err(e) => {
                 let sensor_kind = sensor.sensor_kind().label();

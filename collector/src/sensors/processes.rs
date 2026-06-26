@@ -1,6 +1,6 @@
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
-use common::{ProcessData, ProcessID, ProcessesData, SensorData};
+use common::{Byte, ProcessData, ProcessID, ProcessesData, SensorData};
 use sysinfo::System;
 
 use crate::sensors::{Sensor, SensorError};
@@ -123,8 +123,8 @@ impl Sensor for ProcessesSensor {
                 cpu_usage,
                 gpu_usage,
                 ram_usage,
-                read_bytes,
-                written_bytes,
+                read_bytes: read_bytes.map(|b| Byte::from(b)),
+                written_bytes: written_bytes.map(|b| Byte::from(b)),
             };
             processes_data.push(process_data);
         }

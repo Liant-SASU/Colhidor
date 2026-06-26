@@ -16,13 +16,11 @@ use mqtt::{
     topics::{hardware_info_topic, sensor_data_to_topic},
 };
 use sensors::{
-    DiskSensor, NetworkSensor, RamSensor, SensorType, create_event_from_sensors, get_hardware_info,
+    DiskSensor, NetworkSensor, ProcessesSensor, RamSensor, SensorType, create_event_from_sensors, get_hardware_info,
     gpu::{GPUVendor, get_gpu_list},
 };
 use sysinfo::System;
 use tokio::time::{Duration, Instant, interval, sleep_until};
-
-use crate::sensors::processes::ProcessesSensor;
 
 /// Possible units to choose as output
 #[derive(Debug, Default, Clone, Copy)]
