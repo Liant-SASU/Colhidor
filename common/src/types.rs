@@ -278,14 +278,19 @@ pub struct ProcessData {
 #[derive(Debug, Clone, Serialize)]
 pub struct ProcessesData(pub Vec<ProcessData>);
 
+/// TCP Connection identifier
+#[derive(Debug, PartialEq, Eq, Clone, Serialize, Hash)]
+pub struct TCPConnectionID(pub u64);
+
 #[derive(Debug, Clone, Serialize)]
 pub struct TCPConnectionData {
-    pub client_id: Option<ProcessID>,
-    pub server_id: Option<ProcessID>,
+    pub connection_id: TCPConnectionID,
+    pub local_process_id: Option<ProcessID>,
     pub local_addr: SocketAddr,
     pub remote_addr: SocketAddr,
-    pub bytes_sent: Byte,
-    pub bytes_recv: Byte,
+    pub recv_bytes: Option<Byte>,
+    pub sent_bytes: Option<Byte>,
+    pub maybe_client: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -648,14 +653,18 @@ impl<T: Display> Display for SensorData<T> {
                 for c in data.0.iter() {
                     writeln!(f, " - Connection ({} <-> {}):", c.local_addr, c.remote_addr)?;
 
-                    if let Some(ref client) = c.client_id {
-                        writeln!(f, "       Client ID: {}", client.0)?;
+                    if let Some(ref pid) = c.local_process_id {
+                        writeln!(f, "       Local Process ID:      {}", pid.0)?;
                     }
-                    if let Some(ref server) = c.server_id {
-                        writeln!(f, "       Server ID: {}", server.0)?;
+                    if let Some(ref received_bytes) = c.recv_bytes {
+                        writeln!(f, "       Received Bytes: {}", received_bytes)?;
                     }
-                    writeln!(f, "       Received Bytes: {}", c.bytes_recv)?;
-                    writeln!(f, "       Sent Bytes: {}", c.bytes_sent)?;
+                    if let Some(ref sent_bytes) = c.sent_bytes {
+                        writeln!(f, "       Sent Bytes:     {}", sent_bytes)?;
+                    }
+                    if let Some(ref maybe_client) = c.maybe_client {
+                        writeln!(f, "       Is maybe client : {}", maybe_client)?;
+                    }
                 }
                 Ok(())
             }
