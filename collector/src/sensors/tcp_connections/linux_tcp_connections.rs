@@ -95,7 +95,6 @@ impl LinuxTCPConnectionsCollector {
 
             if let Some(pid) = inode_to_pid_map.get(&entry.inode) {
                 self.id_to_pid.borrow_mut().insert(id.clone(), *pid);
-                println!("{}", *pid);
             }
 
             let data = TCPConnectionData {
