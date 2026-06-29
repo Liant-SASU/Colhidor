@@ -7,9 +7,9 @@ use std::{
 use common::{Byte, TCPConnectionData, TCPConnectionID, TCPConnectionsData};
 use windows::Win32::{
     NetworkManagement::IpHelper::{
-        GetExtendedTcpTable, GetPerTcpConnectionEStats, MIB_TCP6TABLE_OWNER_PID, MIB_TCPROW_OWNER_PID,
-        MIB_TCPTABLE_OWNER_PID, TCP_ESTATS_BANDWIDTH_ROD_v0, TCP_TABLE_OWNER_PID_CONNECTIONS,
-        TcpConnectionEstatsBandwidth,
+        GetExtendedTcpTable, GetPerTcp6ConnectionEStats, GetPerTcpConnectionEStats, MIB_TCP6ROW_OWNER_PID,
+        MIB_TCP6TABLE_OWNER_PID, MIB_TCPROW_OWNER_PID, MIB_TCPTABLE_OWNER_PID, TCP_ESTATS_BANDWIDTH_ROD_v0,
+        TCP_TABLE_OWNER_PID_CONNECTIONS, TcpConnectionEstatsBandwidth,
     },
     Networking::WinSock::{ADDRESS_FAMILY, AF_INET, AF_INET6},
 };
