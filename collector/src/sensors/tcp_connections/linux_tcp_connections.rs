@@ -3,7 +3,7 @@ use std::{cell::RefCell, collections::HashMap};
 use common::{TCPConnectionData, TCPConnectionID, TCPConnectionsData};
 use procfs::net::{TcpState, tcp, tcp6};
 
-use crate::sensors::tcp_connections::TCPConnectionKey;
+use crate::sensors::{SensorError, tcp_connections::TCPConnectionKey};
 
 pub struct LinuxTCPConnectionsCollector {
     ephemeral_port_range: (u16, u16),
@@ -64,14 +64,14 @@ impl LinuxTCPConnectionsCollector {
         self.id_to_pid.borrow().clone()
     }
 
-    pub fn collect_tcp_connections(&self) -> TCPConnectionsData {
+    pub fn collect_tcp_connections(&self) -> Result<TCPConnectionsData, SensorError> {
         let inode_to_pid_map = inode_to_pid_map();
         self.id_to_pid.borrow_mut().clear();
 
         let mut connections = Vec::new();
 
-        let entries4 = tcp().unwrap_or_default();
-        let entries6 = tcp6().unwrap_or_default();
+        let entries4 = tcp().map_err(|e| SensorError::ReadError(e.to_string()))?;
+        let entries6 = tcp6().map_err(|e| SensorError::ReadError(e.to_string()))?;
 
         for entry in entries4.into_iter().chain(entries6.into_iter()) {
             if entry.state != TcpState::Established {
@@ -113,6 +113,6 @@ impl LinuxTCPConnectionsCollector {
             };
             connections.push(data);
         }
-        TCPConnectionsData(connections)
+        Ok(TCPConnectionsData(connections))
     }
 }
