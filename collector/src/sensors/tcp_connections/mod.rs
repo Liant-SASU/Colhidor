@@ -4,6 +4,7 @@ mod linux_tcp_connections;
 #[cfg(target_os = "macos")]
 mod mac_tcp_connections;
 
+#[cfg(target_os = "windows")]
 mod windows_tcp_connections;
 
 use std::{collections::HashMap, net::SocketAddr};
