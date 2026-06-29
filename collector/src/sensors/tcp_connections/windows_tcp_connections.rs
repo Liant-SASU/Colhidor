@@ -39,13 +39,13 @@ fn get_tcp_estats(row: &MIB_TCPROW_OWNER_PID) -> (Option<Byte>, Option<Byte>) {
             0,
             None,
             0,
-            Some(&mut rod as *mut _ as *mut u8),
+            Some(rod_bytes),
             rod_size,
         )
     };
 
     let bytes = if result != 0 {
-        (None, None);
+        (None, None)
     } else {
         (
             Some(Byte::from(rod.OutboundBandwidth)),
@@ -109,7 +109,7 @@ impl WindowsTCPConnectionsCollector {
     }
 
     fn parse_ipv4_table(&self, buf: &[u8], connections: &mut Vec<TCPConnectionData>) {
-        let table = unsafe { &*(buf.as_ptr() as *const MIB_TCP_TABLE_OWNER_PID) };
+        let table = unsafe { &*(buf.as_ptr() as *const MIB_TCPTABLE_OWNER_PID) };
         let rows = unsafe { std::slice::from_raw_parts(table.table.as_ptr(), table.dwNumEntries as usize) };
 
         for row in rows {
@@ -154,7 +154,7 @@ impl WindowsTCPConnectionsCollector {
         }
     }
     fn parse_ipv6_table(&self, buf: &[u8], connections: &mut Vec<TCPConnectionData>) {
-        let table = unsafe { &*(buf.as_ptr() as *const MIB_TCP6_TABLE_OWNER_PID) };
+        let table = unsafe { &*(buf.as_ptr() as *const MIB_TCP6TABLE_OWNER_PID) };
         let rows = unsafe { std::slice::from_raw_parts(table.table.as_ptr(), table.dwNumEntries as usize) };
 
         for row in rows {
