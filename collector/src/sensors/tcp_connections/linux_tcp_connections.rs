@@ -1,0 +1,118 @@
+use std::{cell::RefCell, collections::HashMap};
+
+use common::{TCPConnectionData, TCPConnectionID, TCPConnectionsData};
+use procfs::net::{TcpState, tcp, tcp6};
+
+use crate::sensors::tcp_connections::TCPConnectionKey;
+
+pub struct LinuxTCPConnectionsCollector {
+    ephemeral_port_range: (u16, u16),
+    machine_name: String,
+    id_to_pid: RefCell<HashMap<TCPConnectionID, u32>>,
+}
+
+const DEFAULT_MIN_EPHEMERAL_PORT: u16 = 32768;
+const DEFAULT_MAX_EPHEMERAL_PORT: u16 = 60999;
+
+fn get_ephemeral_port_range() -> (u16, u16) {
+    let range = std::fs::read_to_string("/proc/sys/net/ipv4/ip_local_port_range")
+        .unwrap_or_else(|_| DEFAULT_MIN_EPHEMERAL_PORT.to_string() + " " + &DEFAULT_MAX_EPHEMERAL_PORT.to_string()); // default linux value
+
+    let mut range_parts = range.split_whitespace();
+    let min = range_parts
+        .next()
+        .and_then(|p| p.parse().ok())
+        .unwrap_or(DEFAULT_MIN_EPHEMERAL_PORT);
+    let max = range_parts
+        .next()
+        .and_then(|p| p.parse().ok())
+        .unwrap_or(DEFAULT_MAX_EPHEMERAL_PORT);
+
+    (min, max)
+}
+
+fn inode_to_pid_map() -> HashMap<u64, u32> {
+    let mut hmap = HashMap::new();
+
+    let Ok(ps) = procfs::process::all_processes() else {
+        return hmap;
+    };
+
+    for p in ps.flatten() {
+        let Ok(fds) = p.fd() else { continue };
+
+        for fd in fds.flatten() {
+            if let procfs::process::FDTarget::Socket(inode) = fd.target {
+                hmap.insert(inode, p.pid as u32);
+            }
+        }
+    }
+
+    hmap
+}
+
+impl LinuxTCPConnectionsCollector {
+    pub fn new(machine_name: String) -> Self {
+        Self {
+            ephemeral_port_range: get_ephemeral_port_range(),
+            machine_name,
+            id_to_pid: RefCell::new(HashMap::new()),
+        }
+    }
+
+    pub fn id_to_pid_map(&self) -> HashMap<TCPConnectionID, u32> {
+        self.id_to_pid.borrow().clone()
+    }
+
+    pub fn collect_tcp_connections(&self) -> TCPConnectionsData {
+        let inode_to_pid_map = inode_to_pid_map();
+        self.id_to_pid.borrow_mut().clear();
+
+        let mut connections = Vec::new();
+
+        let entries4 = tcp().unwrap_or_default();
+        let entries6 = tcp6().unwrap_or_default();
+
+        for entry in entries4.into_iter().chain(entries6.into_iter()) {
+            if entry.state != TcpState::Established {
+                continue;
+            }
+            let local_addr = entry.local_address;
+            let remote_addr = entry.remote_address;
+
+            let (ep_min, ep_max) = self.ephemeral_port_range;
+            let local_port = local_addr.port();
+
+            let is_maybe_client = if local_port > ep_min && local_port < ep_max {
+                Some(true)
+            } else {
+                Some(false)
+            };
+
+            let key = TCPConnectionKey::new(self.machine_name.to_string(), local_addr, remote_addr);
+
+            let id = key.into_tcp_connection_id();
+
+            if let Some(pid) = inode_to_pid_map.get(&entry.inode) {
+                self.id_to_pid.borrow_mut().insert(id.clone(), *pid);
+                println!("{}", *pid);
+            }
+
+            let data = TCPConnectionData {
+                connection_id: id,
+                local_addr,
+                remote_addr,
+                maybe_client: is_maybe_client,
+
+                // Need process sensor information
+                local_process_id: None,
+
+                // TODO: Need eBPF for linux
+                recv_bytes: None,
+                sent_bytes: None,
+            };
+            connections.push(data);
+        }
+        TCPConnectionsData(connections)
+    }
+}

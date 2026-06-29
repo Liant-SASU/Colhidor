@@ -157,12 +157,12 @@ impl CollectorApp {
         let hostname = hostname::get().unwrap_or_default().to_string_lossy().to_string();
         self.sensors.push(SensorType::Processes(ProcessesSensor::new(
             self.system.clone(),
-            hostname,
+            hostname.to_string(),
         )));
 
         // TCP Connections sensor
         self.sensors
-            .push(SensorType::TCPConnections(TCPConnectionsSensor::new()));
+            .push(SensorType::TCPConnections(TCPConnectionsSensor::new(hostname)));
 
         // Hardware info
         crate::clog!("\n========== GATHERING HARDWARE INFORMATION ==========\n");
