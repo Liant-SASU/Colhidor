@@ -136,7 +136,7 @@ impl WindowsTCPConnectionsCollector {
                 Some(false)
             };
 
-            let (read_bytes, send_bytes) = get_tcp_estats(row);
+            let (recv_bytes, sent_bytes) = get_tcp_estats(row);
 
             let data = TCPConnectionData {
                 connection_id: id,
@@ -180,6 +180,8 @@ impl WindowsTCPConnectionsCollector {
                 Some(false)
             };
 
+            let (recv_bytes, sent_bytes) = get_tcp_estats(row);
+
             let data = TCPConnectionData {
                 connection_id: id,
                 local_addr,
@@ -189,8 +191,8 @@ impl WindowsTCPConnectionsCollector {
                 // Need process sensor information
                 local_process_id: None,
 
-                recv_bytes: None, // TODO: GetPerTcpConnectionEStats
-                sent_bytes: None,
+                recv_bytes,
+                sent_bytes,
             };
             connections.push(data);
         }
