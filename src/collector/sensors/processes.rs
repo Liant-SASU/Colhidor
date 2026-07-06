@@ -1,9 +1,8 @@
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
-use common::{Byte, Percent, ProcessData, ProcessID, ProcessesData, SensorData};
 use sysinfo::System;
 
-use crate::sensors::{Sensor, SensorError};
+use super::{Byte, Percent, ProcessData, ProcessID, ProcessesData, Sensor, SensorData, SensorError};
 
 /// Process sensor backed by sysinfo.
 pub struct ProcessesSensor {

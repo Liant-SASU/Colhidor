@@ -1,12 +1,8 @@
 use std::{cell::RefCell, time::Instant};
 
-use common::{
-    Byte, DiskData, EnergyUj, SensorData,
-    types::{DiskInfo, InitialInfo},
-};
 use sysinfo::Disks;
 
-use crate::sensors::{Sensor, SensorError};
+use super::{Byte, DiskData, DiskInfo, EnergyUj, InitialInfo, Sensor, SensorData, SensorError};
 
 const SSD_IDLE_W: f64 = 0.05;
 const HDD_IDLE_W: f64 = 3.0;

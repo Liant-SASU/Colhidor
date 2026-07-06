@@ -1,5 +1,9 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+pub mod collector;
+pub mod publisher;
+pub mod utils;
+
 use std::net::SocketAddr;
 
 use bpaf::{OptionParser, Parser, construct, long};
@@ -99,8 +103,8 @@ fn start_collector(capture_interval: u64, mqtt_infos: Option<MQTTInfo>) -> Resul
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() {
-    if let Err(e) = common::set_current_dir_to_exe_dir() {
-        common::clog!("⚠ Failed to set working directory to executable directory: {}", e);
+    if let Err(e) = utils::set_current_dir_to_exe_dir() {
+        crate::clog!("⚠ Failed to set working directory to executable directory: {}", e);
     }
 
     let options = options().run();
@@ -120,7 +124,7 @@ async fn main() {
 
     if options.mqtt_addr.is_none() && options.mqtt_id.is_some() {
         let msg = format!("An MQTT broker address must be entered in order to specify the collector's MQTT topic.");
-        common::clog!("✗ {msg}");
+        crate::clog!("✗ {msg}");
         return;
     }
 
@@ -134,6 +138,6 @@ async fn main() {
 
     match start_collector(options.capture_interval, mqtt_infos) {
         Ok(mut app) => app.run().await,
-        Err(e) => common::clog!("✗ {e}"),
+        Err(e) => crate::clog!("✗ {e}"),
     }
 }

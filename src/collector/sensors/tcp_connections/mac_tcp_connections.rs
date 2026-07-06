@@ -4,7 +4,6 @@ use std::{
     net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
 };
 
-use common::{TCPConnectionData, TCPConnectionID, TCPConnectionsData};
 use libproc::{
     file_info::{ListFDs, ProcFDType},
     net_info::{SocketFDInfo, SocketInfoKind, TcpSIState, TcpSockInfo},
@@ -13,7 +12,9 @@ use libproc::{
 };
 use sysctl::Sysctl;
 
-use crate::sensors::{SensorError, tcp_connections::TCPConnectionKey};
+use super::super::{
+    SensorError, TCPConnectionData, TCPConnectionID, TCPConnectionsData, tcp_connections::TCPConnectionKey,
+};
 
 /// MacOS TCP connections information collector
 pub struct MacosTCPConnectionsCollector {

@@ -1,8 +1,6 @@
 use std::collections::HashMap;
 
-use common::{Percent, SensorData, types::InitialInfo};
-
-use super::{Sensor, SensorError, SensorType};
+use super::{InitialInfo, Percent, Sensor, SensorData, SensorError, SensorType};
 
 /// GPU hardware vendor identifier.
 #[derive(Copy, Clone, PartialEq, Debug)]
@@ -197,9 +195,8 @@ mod amd_gpu {
     use std::{cell::RefCell, time::Instant};
 
     use adlx::{Gpu, helper::AdlxHelper, performance_monitoring_services::PerformanceMonitoringServices};
-    use common::{EnergyUj, GPUData, Percent, SensorData};
 
-    use super::{Sensor, SensorError};
+    use super::super::{EnergyUj, GPUData, Percent, Sensor, SensorData, SensorError};
 
     pub struct AmdGPUSensor {
         _helper: AdlxHelper,
@@ -297,10 +294,12 @@ mod amd_gpu {
 mod nvidia_gpu {
     use std::{cell::RefCell, collections::HashMap, time::Instant};
 
-    use common::{EnergyUj, GPUData, Percent, SensorData};
     use nvml_wrapper::Nvml;
 
-    use super::{Sensor, SensorError};
+    use super::{
+        super::{EnergyUj, GPUData, Percent, SensorData},
+        Sensor, SensorError,
+    };
 
     enum NvidiaReadMode {
         EnergyCounter,
@@ -329,10 +328,10 @@ mod nvidia_gpu {
                 .map_err(|e| SensorError::ReadError(format!("NVIDIA GPU {} utilization unavailable: {}", index, e)))?;
 
             let mode = if device.total_energy_consumption().is_ok() {
-                common::clog!("NVIDIA GPU {}: using energy counter mode", index);
+                crate::clog!("NVIDIA GPU {}: using energy counter mode", index);
                 NvidiaReadMode::EnergyCounter
             } else if device.power_usage().is_ok() {
-                common::clog!(
+                crate::clog!(
                     "NVIDIA GPU {}: energy counter unavailable, using power instant mode",
                     index
                 );
@@ -451,7 +450,6 @@ mod nvidia_gpu {
 mod intel_gpu {
     use std::slice;
 
-    use common::{GPUData, Percent, SensorData};
     use windows::{
         Win32::System::Performance::{
             PDH_FMT_COUNTERVALUE_ITEM_W, PDH_FMT_DOUBLE, PDH_HCOUNTER, PDH_HQUERY, PdhAddEnglishCounterW,
@@ -460,7 +458,10 @@ mod intel_gpu {
         core::PCWSTR,
     };
 
-    use super::{Sensor, SensorError};
+    use super::{
+        super::{GPUData, Percent, SensorData},
+        Sensor, SensorError,
+    };
 
     const PDH_MORE_DATA: u32 = 0x800007D2;
 

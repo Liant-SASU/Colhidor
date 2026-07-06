@@ -1,47 +1,98 @@
 [package]
 name = "colhidor"
-autobins = false
-build = "build.rs"
 version.workspace = true
 authors.workspace = true
-readme.workspace = true
-license.workspace = true
-repository.workspace = true
-keywords.workspace = true
 edition.workspace = true
 description.workspace = true
+readme.workspace = true
+repository.workspace = true
+license.workspace = true
+keywords.workspace = true
+build = "build.rs"
+autobins = false
+
+[workspace.package]
+version = "1.0.2"
+authors = [
+  "Gabin DUDILLIEU <gabin.dudillieu@liant.dev>",
+  "Roland LAURES <roland@liant.dev>",
+  "Damien PHILIPPE <damien.philippe@edu.esiee.fr>",
+  "Paul MALLARD <paul.mallard@edu.esiee.fr>"
+]
+edition = "2024"
+description = "Colhidor is a tool for collecting consumption data and sending it over the MQTT protocol."
+readme = "README.md"
+repository = "https://github.com/Liant-SASU/Colhidor"
+license = "GPL-3.0"
+keywords = [
+  "carbon",
+  "emissions",
+  "energy",
+  "monitoring",
+  "power",
+  "sustainability"
+]
 
 [[bin]]
 name = "Colhidor"
 path = "src/main.rs"
 
-[workspace]
-resolver = "3"
-members = ["collector", "common", "mqtt"]
-
-[workspace.package]
-version = "1.0.2"
-authors = ["Gabin DUDILLIEU <gabin.dudillieu@liant.dev>", "Paul MALLARD <roland@liant.dev>"]
-readme = "README.md"
-license = "GPL-3.0"
-repository = "https://github.com/Liant-SASU/Colhidor"
-keywords = ["power", "energy", "monitoring", "carbon", "emissions", "sustainability"]
-edition = "2024"
-description = "Colhidor is a tool for collecting consumption data and sending it over the MQTT protocol."
-
 [dependencies]
-collector = { path = "collector" }
-common = { path = "common" }
+# Main
 bpaf = { version = "0.9.26", features = ["derive", "dull-color"] }
+serde = { version = "1.0.228", features = ["derive"] }
 tokio = "1.52.3"
 
-[target.'cfg(windows)'.build-dependencies]
+# MQTT
+bincode = "1"
+mockall = "0.14.0"
+rumqttc = "0.25.1"
+
+# Collector
+battery = "0.7.8"
+blake3 = "1.8.5"
+chrono = "0.4.44"
+display-info = "0.5.9"
+hostname = "0.4.2"
+serde_json = "1.0.150"
+sysinfo = "0.39.3"
+
+[target.'cfg(any(windows, target_os = "linux"))'.dependencies]
+nvml-wrapper = "0.12.1"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+procfs = "0.18.0"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+libproc = "0.14"
+nix = { version = "0.27", features = ["net", "socket"] }
+sysctl = "0.5"
+
+[target."cfg(windows)".dependencies]
+adlx = "0.0.0-alpha.1"
+runas = "1.2"
+scaphandre-driver-rs = "1.0.0"
+windows = {
+  version = "0.62.2",
+  features = [
+    "Win32_Foundation",
+    "Win32_Graphics_Dxgi",
+    "Win32_NetworkManagement_IpHelper",
+    "Win32_Networking_WinSock",
+    "Win32_System_Diagnostics_ToolHelp",
+    "Win32_System_Performance",
+    "Win32_System_ProcessStatus",
+    "Win32_System_SystemInformation",
+    "Win32_System_Threading",
+  ]
+}
+
+[target."cfg(windows)".build-dependencies]
 winres = "0.1"
-tokio = "1.52.3"
 
 [profile.release]
 opt-level = 3
-lto = true
-codegen-units = 1
 strip = true
+lto = true
 panic = "unwind"
+codegen-units = 1

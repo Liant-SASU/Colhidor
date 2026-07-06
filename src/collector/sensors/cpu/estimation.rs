@@ -1,6 +1,6 @@
 use std::{cell::RefCell, time::Instant};
 
-use common::{EnergyUj, Percent};
+use super::super::{EnergyUj, Percent};
 
 static TDP_TABLE: &[(&str, f64)] = &[
     // Intel Desktop (12th–14th gen)

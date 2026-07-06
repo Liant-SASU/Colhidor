@@ -9,15 +9,14 @@ mod windows_tcp_connections;
 
 use std::{collections::HashMap, net::SocketAddr};
 
-use common::{SensorData, TCPConnectionID};
-
 #[cfg(target_os = "linux")]
-use crate::sensors::tcp_connections::linux_tcp_connections::LinuxTCPConnectionsCollector;
+use linux_tcp_connections::LinuxTCPConnectionsCollector;
 #[cfg(target_os = "macos")]
-use crate::sensors::tcp_connections::mac_tcp_connections::MacosTCPConnectionsCollector;
+use mac_tcp_connections::MacosTCPConnectionsCollector;
 #[cfg(target_os = "windows")]
-use crate::sensors::tcp_connections::windows_tcp_connections::WindowsTCPConnectionsCollector;
-use crate::sensors::{Sensor, SensorError};
+use windows_tcp_connections::WindowsTCPConnectionsCollector;
+
+use super::{Sensor, SensorData, SensorError, TCPConnectionID};
 
 /// A TCP connection key used to identify a TCP Connection on a machine
 struct TCPConnectionKey {

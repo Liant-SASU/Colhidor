@@ -1,9 +1,11 @@
 use std::cell::RefCell;
 
-use common::{CPUData, EnergyUj, SensorData};
 use driver::ScaphandreMsrReader;
 
-use super::{CPUVendor, Sensor, SensorError};
+use super::{
+    super::{CPUData, EnergyUj, Sensor, SensorData, SensorError},
+    CPUVendor,
+};
 
 mod driver;
 

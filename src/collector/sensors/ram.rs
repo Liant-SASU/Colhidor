@@ -1,11 +1,6 @@
 use std::{cell::RefCell, rc::Rc, time::Instant};
 
-use common::{
-    EnergyUj, Percent, RamData, SensorData,
-    types::{InitialInfo, MemoryInfo},
-};
-
-use crate::sensors::{Sensor, SensorError, System};
+use super::{EnergyUj, InitialInfo, MemoryInfo, Percent, RamData, Sensor, SensorData, SensorError, System};
 
 /// RAM usage sensor backed by sysinfo.
 pub struct RamSensor {

@@ -1,9 +1,10 @@
 use std::{cell::RefCell, collections::HashMap};
 
-use common::{TCPConnectionData, TCPConnectionID, TCPConnectionsData};
 use procfs::net::{TcpState, tcp, tcp6};
 
-use crate::sensors::{SensorError, tcp_connections::TCPConnectionKey};
+use super::super::{
+    SensorError, TCPConnectionData, TCPConnectionID, TCPConnectionsData, tcp_connections::TCPConnectionKey,
+};
 
 /// Linux TCP connections information collector
 pub struct LinuxTCPConnectionsCollector {
