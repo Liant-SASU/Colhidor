@@ -1,19 +1,15 @@
 [package]
 name = "colhidor"
-autobins = false
-build = "build.rs"
 version.workspace = true
 authors.workspace = true
-readme.workspace = true
-license.workspace = true
-repository.workspace = true
-keywords.workspace = true
 edition.workspace = true
 description.workspace = true
-
-[[bin]]
-name = "Colhidor"
-path = "src/main.rs"
+readme.workspace = true
+repository.workspace = true
+license.workspace = true
+keywords.workspace = true
+build = "build.rs"
+autobins = false
 
 [workspace]
 resolver = "3"
@@ -21,27 +17,43 @@ members = ["collector", "common", "mqtt"]
 
 [workspace.package]
 version = "1.0.2"
-authors = ["Gabin DUDILLIEU <gabin.dudillieu@liant.dev>", "Paul MALLARD <roland@liant.dev>"]
-readme = "README.md"
-license = "GPL-3.0"
-repository = "https://github.com/Liant-SASU/Colhidor"
-keywords = ["power", "energy", "monitoring", "carbon", "emissions", "sustainability"]
+authors = [
+  "Gabin DUDILLIEU <gabin.dudillieu@liant.dev>",
+  "Roland LAURES <roland@liant.dev>",
+  "Damien PHILIPPE <damien.philippe@edu.esiee.fr>",
+  "Paul MALLARD <paul.mallard@edu.esiee.fr>"
+]
 edition = "2024"
 description = "Colhidor is a tool for collecting consumption data and sending it over the MQTT protocol."
+readme = "README.md"
+repository = "https://github.com/Liant-SASU/Colhidor"
+license = "GPL-3.0"
+keywords = [
+  "carbon",
+  "emissions",
+  "energy",
+  "monitoring",
+  "power",
+  "sustainability"
+]
+
+[[bin]]
+name = "Colhidor"
+path = "src/main.rs"
 
 [dependencies]
+bpaf = { version = "0.9.26", features = ["derive", "dull-color"] }
 collector = { path = "collector" }
 common = { path = "common" }
-bpaf = { version = "0.9.26", features = ["derive", "dull-color"] }
 tokio = "1.52.3"
 
-[target.'cfg(windows)'.build-dependencies]
-winres = "0.1"
+[target."cfg(windows)".build-dependencies]
 tokio = "1.52.3"
+winres = "0.1"
 
 [profile.release]
 opt-level = 3
-lto = true
-codegen-units = 1
 strip = true
+lto = true
 panic = "unwind"
+codegen-units = 1
