@@ -37,7 +37,7 @@ impl<T: MQTTPublisher> MQTTPublisherImpl<T> {
     /// Publish `data` with milliseconds timestamp, to the self client `topic`
     pub fn publish(&self, topic: &str, data: &impl Serialize, timestamp: u64) -> Result<(), PublisherError> {
         let timestamped_data = TimestampedData { data, timestamp };
-        let bytes = bincode::serialize(&timestamped_data).unwrap();
+        let bytes = bincode::serialize(&timestamped_data).map_err(|_| PublisherError::Serialization)?;
 
         self.client.publish(topic, bytes)
     }
