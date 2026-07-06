@@ -2,7 +2,10 @@ use std::cell::RefCell;
 
 use driver::ScaphandreMsrReader;
 
-use super::super::{CPUData, CPUVendor, EnergyUj, Sensor, SensorData, SensorError};
+use super::{
+    super::{CPUData, EnergyUj, Sensor, SensorData, SensorError},
+    CPUVendor,
+};
 
 mod driver;
 
