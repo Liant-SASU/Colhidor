@@ -4,7 +4,6 @@ use std::{
     net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
 };
 
-use common::{Byte, TCPConnectionData, TCPConnectionID, TCPConnectionsData};
 use windows::Win32::{
     NetworkManagement::IpHelper::{
         GetExtendedTcpTable, GetPerTcp6ConnectionEStats, GetPerTcpConnectionEStats, MIB_TCP6ROW_OWNER_PID,
@@ -14,7 +13,9 @@ use windows::Win32::{
     Networking::WinSock::{ADDRESS_FAMILY, AF_INET, AF_INET6},
 };
 
-use crate::sensors::{SensorError, tcp_connections::TCPConnectionKey};
+use super::super::{
+    Byte, SensorError, TCPConnectionData, TCPConnectionID, TCPConnectionsData, tcp_connections::TCPConnectionKey,
+};
 
 /// Windows TCP connections information collector
 pub struct WindowsTCPConnectionsCollector {

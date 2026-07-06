@@ -1,3 +1,16 @@
+pub mod logging;
+
+/// In debug → `println!`. In release → append timestamped line to log file.
+#[macro_export]
+macro_rules! clog {
+    ($($arg:tt)*) => {{
+        #[cfg(debug_assertions)]
+        println!($($arg)*);
+        #[cfg(not(debug_assertions))]
+        $crate::utils::logging::log_to_file(&format!($($arg)*));
+    }};
+}
+
 /// Converts a byte count to megabytes.
 pub fn bytes_to_mb(bytes: f64) -> f64 {
     bytes / (2 << 20) as f64

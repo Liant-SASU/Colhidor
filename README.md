@@ -57,10 +57,10 @@ This one can be used on Windows, macOS, and Linux.
 Colhidor is a Rust workspace made up of three crates:
 
 ```
-colhidor/               ← Root binary
+src/                    ← Project root
   ├── collector/        ← Background sensor polling, energy estimation and data sending
-  ├── common/           ← Shared types, SQLite layer, utilities
-  ├── mqtt/             ← MQTT data sender
+  ├── utils/            ← Logs functions, utilities
+  ├── publisher/        ← Data sender (in mqtt for example)
 ```
 
 ---
@@ -105,11 +105,11 @@ cargo build --release
 ## Project Layout
 
 | Path          | What it does                                                                            |
-| ---------------| -----------------------------------------------------------------------------------------|
-| `src/main.rs` | Entry point: admin elevation, tray icon, collector thread, UI subprocess                |
+| --------------| ----------------------------------------------------------------------------------------|
+| `src/main.rs` | Entry point, flags management, initialization and run of the collector                  |
 | `collector/`  | All sensor implementations (CPU, GPU, RAM, disk, network, per-process, tcp-connections) |
-| `common/`     | Shared types (`Event`, `SensorData`, …), utilities                                      |
-| `mqtt/`       | MQTT data sender                                                                        |
+| `common/`     | Logs functions, utilities                                                               |
+| `publisher/`  | Data sender (in mqtt for example)                                                       |
 ---
 
 ## Code Style & Quality

@@ -7,21 +7,18 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-pub use common::clog;
-#[cfg(not(debug_assertions))]
-use common::logging::start_log_session;
-use common::{EnergyWh, Event, SensorData};
-use mqtt::{
-    MQTTPublisher,
-    topics::{hardware_info_topic, sensor_data_to_topic},
-};
 use sensors::{
-    DiskSensor, NetworkSensor, ProcessesSensor, RamSensor, SensorType, TCPConnectionsSensor, create_event_from_sensors,
-    get_hardware_info,
+    DiskSensor, EnergyWh, Event, NetworkSensor, ProcessesSensor, RamSensor, SensorData, SensorType,
+    TCPConnectionsSensor, create_event_from_sensors, get_hardware_info,
     gpu::{GPUVendor, get_gpu_list},
 };
 use sysinfo::System;
 use tokio::time::{Duration, Instant, interval, sleep_until};
+
+pub use crate::clog;
+use crate::publisher::{hardware_info_topic, mqtt::MQTTPublisherImpl, sensor_data_to_topic};
+#[cfg(not(debug_assertions))]
+use crate::utils::logging::start_log_session;
 
 /// Possible units to choose as output
 #[derive(Debug, Default, Clone, Copy)]
@@ -34,7 +31,7 @@ pub enum ConsumptionUnit {
 /// MQTT information to interact with a MQTT client
 pub struct MQTTInfo {
     id: String,
-    publisher: MQTTPublisher<rumqttc::Client>,
+    publisher: MQTTPublisherImpl<rumqttc::Client>,
     unit: Option<ConsumptionUnit>,
 }
 
@@ -51,7 +48,7 @@ pub struct CollectorApp {
 
 impl MQTTInfo {
     pub fn new(id: &str, addr: &SocketAddr, unit: Option<ConsumptionUnit>) -> Self {
-        let publisher = MQTTPublisher::new_from_addr(addr);
+        let publisher = MQTTPublisherImpl::new_from_addr(addr);
         MQTTInfo {
             id: id.to_string(),
             publisher,

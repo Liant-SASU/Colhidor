@@ -271,44 +271,29 @@ dependencies = [
 name = "colhidor"
 version = "1.0.2"
 dependencies = [
- "bpaf",
- "collector",
- "common",
- "tokio",
- "winres",
-]
-
-[[package]]
-name = "collector"
-version = "1.0.2"
-dependencies = [
  "adlx",
  "battery",
+ "bincode",
  "blake3",
- "common",
+ "bpaf",
+ "chrono",
  "display-info",
  "hostname",
  "libproc",
- "mqtt",
+ "mockall",
  "nix 0.27.1",
  "nvml-wrapper",
  "procfs",
  "rumqttc",
  "runas",
  "scaphandre-driver-rs",
+ "serde",
+ "serde_json",
  "sysctl",
  "sysinfo",
  "tokio",
  "windows",
-]
-
-[[package]]
-name = "common"
-version = "1.0.2"
-dependencies = [
- "chrono",
- "serde",
- "serde_json",
+ "winres",
 ]
 
 [[package]]
@@ -856,17 +841,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
-]
-
-[[package]]
-name = "mqtt"
-version = "1.0.2"
-dependencies = [
- "bincode",
- "common",
- "mockall",
- "rumqttc",
- "serde",
 ]
 
 [[package]]

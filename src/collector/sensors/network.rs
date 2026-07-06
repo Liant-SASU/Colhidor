@@ -1,9 +1,8 @@
 use std::{cell::RefCell, time::Instant};
 
-use common::{Byte, EnergyUj, NetworkData, SensorData};
 use sysinfo::Networks;
 
-use crate::sensors::{Sensor, SensorError};
+use super::{Byte, EnergyUj, NetworkData, Sensor, SensorData, SensorError};
 
 const NIC_IDLE_W: f64 = 0.2;
 const NIC_W_PER_MB: f64 = 0.01;
