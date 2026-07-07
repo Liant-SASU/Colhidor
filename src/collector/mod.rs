@@ -14,6 +14,7 @@ use sensors::{
     get_hardware_info,
     gpu::{GPUVendor, get_gpu_list},
 };
+use serde::Serialize;
 use sysinfo::System;
 use tokio::time::{Duration, Instant, interval, sleep_until};
 
@@ -187,26 +188,40 @@ impl CollectorApp {
         Ok(())
     }
 
+    fn publish_sensor_data<E: Clone + Serialize>(&self, sensor_data: &SensorData<E>, timestamp: u64) {
+        if let Some(mqtt_info) = &self.mqtt_info {
+            let topic = sensor_data_to_topic(&mqtt_info.id, &sensor_data);
+            let _result = match sensor_data {
+                SensorData::CPU(cpudata) => mqtt_info.publisher.publish(&topic, cpudata, timestamp),
+                SensorData::GPU(gpudata) => mqtt_info.publisher.publish(&topic, gpudata, timestamp),
+                SensorData::Ram(ram_data) => mqtt_info.publisher.publish(&topic, ram_data, timestamp),
+                SensorData::Disk(disk_data) => mqtt_info.publisher.publish(&topic, disk_data, timestamp),
+                SensorData::Network(network_data) => mqtt_info.publisher.publish(&topic, network_data, timestamp),
+                SensorData::Processes(processes_data) => mqtt_info.publisher.publish(&topic, processes_data, timestamp),
+                SensorData::TCPConnections(tcpconnections_data) => {
+                    mqtt_info.publisher.publish(&topic, tcpconnections_data, timestamp)
+                }
+            };
+            #[cfg(debug_assertions)]
+            match _result {
+                Ok(_) => println!("✓ Sensor data published on topic {}", topic),
+                Err(e) => eprintln!("✗ Failed to publish sensor data on topic {}: {:?}", topic, e),
+            }
+        }
+    }
+
     /// Publish event sensors data with given timestamp on the collector mqtt client
     fn publish_event_data(&self, event: &Event, timestamp: u64) {
         if let Some(mqtt_info) = &self.mqtt_info {
             for sensor_data in event.data() {
-                let topic = sensor_data_to_topic(&mqtt_info.id, &sensor_data);
-
-                let _result = mqtt_info.unit.map_or_else(
-                    || mqtt_info.publisher.publish(&topic, sensor_data, timestamp),
-                    |u| match u {
-                        ConsumptionUnit::UJoul => mqtt_info.publisher.publish(&topic, &sensor_data, timestamp),
+                if let Some(unit) = mqtt_info.unit {
+                    match unit {
+                        ConsumptionUnit::UJoul => self.publish_sensor_data(&sensor_data, timestamp),
                         ConsumptionUnit::WattHour => {
                             let sensor_data_wh: SensorData<EnergyWh> = sensor_data.to_wh();
-                            mqtt_info.publisher.publish(&topic, &sensor_data_wh, timestamp)
+                            self.publish_sensor_data(&sensor_data_wh, timestamp)
                         }
-                    },
-                );
-                #[cfg(debug_assertions)]
-                match _result {
-                    Ok(_) => println!("✓ Sensor data published on topic {}", topic),
-                    Err(e) => eprintln!("✗ Failed to publish sensor data on topic {}: {:?}", topic, e),
+                    }
                 }
             }
         }
