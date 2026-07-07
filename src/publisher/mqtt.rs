@@ -10,6 +10,7 @@ pub const MAX_INCOMING_PACKET_SIZE: usize = 1 * 1024 * 1024; // 1 Mo
 pub const MAX_OUTCOMING_PACKET_SIZE: usize = 1 * 1024 * 1024; // 1 Mo
 pub const CLIENT_CHANNEL_CAPACITY: usize = 10;
 pub const KEEP_ALIVE_SECS: Duration = Duration::from_secs(5);
+pub const ENCODE_CONFIG: bincode::config::Configuration = bincode::config::standard();
 
 #[automock]
 pub trait MQTTPublisher {
@@ -37,7 +38,8 @@ impl<T: MQTTPublisher> MQTTPublisherImpl<T> {
     /// Publish `data` with milliseconds timestamp, to the self client `topic`
     pub fn publish(&self, topic: &str, data: &impl Serialize, timestamp: u64) -> Result<(), PublisherError> {
         let timestamped_data = TimestampedData { data, timestamp };
-        let bytes = bincode::serialize(&timestamped_data).map_err(|_| PublisherError::Serialization)?;
+        let bytes = bincode::serde::encode_to_vec(timestamped_data, ENCODE_CONFIG)
+            .map_err(|_| PublisherError::Serialization)?;
 
         self.client.publish(topic, bytes)
     }
