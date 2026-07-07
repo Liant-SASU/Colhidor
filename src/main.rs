@@ -15,7 +15,7 @@ struct Options {
     capture_interval: u64,
     mqtt_id: Option<String>,
     mqtt_addr: Option<SocketAddr>,
-    mqtt_unit: Option<ConsumptionUnit>,
+    mqtt_unit: ConsumptionUnit,
     #[cfg(target_os = "windows")]
     install_cpu_driver: bool,
     #[cfg(target_os = "windows")]
@@ -53,7 +53,8 @@ fn options() -> OptionParser<Options> {
             "wh" => Ok(ConsumptionUnit::WattHour),
             other => Err(format!("Unknown returns unit '{}' for MQTT: expected uj or wh.", other)),
         })
-        .optional();
+        .fallback(ConsumptionUnit::UJoul)
+        .display_fallback();
 
     let description = "Colhidor - Per-process power monitoring tool";
 
@@ -123,7 +124,7 @@ async fn main() {
     }
 
     if options.mqtt_addr.is_none() && options.mqtt_id.is_some() {
-        let msg = format!("An MQTT broker address must be entered in order to specify the collector's MQTT topic.");
+        let msg = format!("An MQTT broker address must be entered in order to specify the collector's MQTT topic ID.");
         crate::clog!("✗ {msg}");
         return;
     }

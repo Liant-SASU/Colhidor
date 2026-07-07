@@ -44,7 +44,7 @@ serde = { version = "1.0.228", features = ["derive"] }
 tokio = "1.52.3"
 
 # MQTT
-bincode = "1"
+bincode = { version = "2", features = ["serde"] }
 mockall = "0.14.0"
 rumqttc = "0.25.1"
 
