@@ -3,7 +3,7 @@ use std::cell::RefCell;
 use driver::ScaphandreMsrReader;
 
 use super::{
-    super::{CPUData, EnergyUj, Sensor, SensorData, SensorError},
+    super::{EnergyUj, Sensor, SensorData, SensorError, data::CPUData},
     CPUVendor,
 };
 

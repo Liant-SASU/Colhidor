@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use super::{InitialInfo, Percent, Sensor, SensorData, SensorError, SensorType};
+use super::{InitialInfo, Sensor, SensorData, SensorError, SensorType, data::Percent};
 
 /// GPU hardware vendor identifier.
 #[derive(Copy, Clone, PartialEq, Debug)]
@@ -196,7 +196,7 @@ mod amd_gpu {
 
     use adlx::{Gpu, helper::AdlxHelper, performance_monitoring_services::PerformanceMonitoringServices};
 
-    use super::super::{EnergyUj, GPUData, Percent, Sensor, SensorData, SensorError};
+    use super::super::{EnergyUj, GPUData, Sensor, SensorData, SensorError, data::Percent};
 
     pub struct AmdGPUSensor {
         _helper: AdlxHelper,
@@ -297,7 +297,7 @@ mod nvidia_gpu {
     use nvml_wrapper::Nvml;
 
     use super::{
-        super::{EnergyUj, GPUData, Percent, SensorData},
+        super::{EnergyUj, GPUData, SensorData, data::Percent},
         Sensor, SensorError,
     };
 
@@ -459,7 +459,7 @@ mod intel_gpu {
     };
 
     use super::{
-        super::{GPUData, Percent, SensorData},
+        super::{GPUData, SensorData, data::Percent},
         Sensor, SensorError,
     };
 

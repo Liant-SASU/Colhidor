@@ -2,7 +2,10 @@ use std::{cell::RefCell, time::Instant};
 
 use sysinfo::Disks;
 
-use super::{Byte, DiskData, DiskInfo, EnergyUj, InitialInfo, Sensor, SensorData, SensorError};
+use super::{
+    EnergyUj, InitialInfo, Sensor, SensorData, SensorError,
+    data::{Byte, DiskData, DiskInfo},
+};
 
 const SSD_IDLE_W: f64 = 0.05;
 const HDD_IDLE_W: f64 = 3.0;

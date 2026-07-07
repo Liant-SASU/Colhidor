@@ -13,7 +13,9 @@ use libproc::{
 use sysctl::Sysctl;
 
 use super::super::{
-    SensorError, TCPConnectionData, TCPConnectionID, TCPConnectionsData, tcp_connections::TCPConnectionKey,
+    SensorError, TCPConnectionID,
+    data::{TCPConnectionData, TCPConnectionsData},
+    tcp_connections::TCPConnectionKey,
 };
 
 /// MacOS TCP connections information collector

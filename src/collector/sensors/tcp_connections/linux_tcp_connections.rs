@@ -3,7 +3,9 @@ use std::{cell::RefCell, collections::HashMap};
 use procfs::net::{TcpState, tcp, tcp6};
 
 use super::super::{
-    SensorError, TCPConnectionData, TCPConnectionID, TCPConnectionsData, tcp_connections::TCPConnectionKey,
+    SensorError, TCPConnectionID,
+    data::{TCPConnectionData, TCPConnectionsData},
+    tcp_connections::TCPConnectionKey,
 };
 
 /// Linux TCP connections information collector
