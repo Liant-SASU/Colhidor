@@ -227,15 +227,15 @@ impl CollectorApp {
         if let Some(mqtt_info) = &self.mqtt_info {
             for sensor_data in event.data() {
                 match mqtt_info.unit {
-                        ConsumptionUnit::UJoul => self.publish_sensor_data(&sensor_data, timestamp),
-                        ConsumptionUnit::WattHour => {
-                            let sensor_data_wh: SensorData<EnergyWh> = sensor_data.to_wh();
-                            self.publish_sensor_data(&sensor_data_wh, timestamp)
-                        }
+                    ConsumptionUnit::UJoul => self.publish_sensor_data(&sensor_data, timestamp),
+                    ConsumptionUnit::WattHour => {
+                        let sensor_data_wh: SensorData<EnergyWh> = sensor_data.to_wh();
+                        self.publish_sensor_data(&sensor_data_wh, timestamp)
                     }
                 }
             }
         }
+    }
 
     /// Runs the collection loop, sampling sensors every capture interval second.
     pub async fn run(&mut self) {
