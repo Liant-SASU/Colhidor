@@ -8,8 +8,10 @@ use std::{
 };
 
 use sensors::{
-    DiskSensor, EnergyWh, Event, NetworkSensor, ProcessesSensor, RamSensor, SensorData, SensorType,
-    TCPConnectionsSensor, create_event_from_sensors, get_hardware_info,
+    DiskSensor, Event, NetworkSensor, ProcessesSensor, RamSensor, SensorData, SensorType, TCPConnectionsSensor,
+    create_event_from_sensors,
+    data::EnergyWh,
+    get_hardware_info,
     gpu::{GPUVendor, get_gpu_list},
 };
 use sysinfo::System;

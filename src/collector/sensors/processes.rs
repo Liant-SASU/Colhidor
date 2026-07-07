@@ -2,7 +2,10 @@ use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use sysinfo::System;
 
-use super::{Byte, Percent, ProcessData, ProcessID, ProcessesData, Sensor, SensorData, SensorError};
+use super::{
+    ProcessID, Sensor, SensorData, SensorError,
+    data::{Byte, Percent, ProcessData, ProcessesData},
+};
 
 /// Process sensor backed by sysinfo.
 pub struct ProcessesSensor {

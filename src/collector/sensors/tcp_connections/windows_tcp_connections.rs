@@ -14,7 +14,9 @@ use windows::Win32::{
 };
 
 use super::super::{
-    Byte, SensorError, TCPConnectionData, TCPConnectionID, TCPConnectionsData, tcp_connections::TCPConnectionKey,
+    SensorError, TCPConnectionID,
+    data::{Byte, TCPConnectionData, TCPConnectionsData},
+    tcp_connections::TCPConnectionKey,
 };
 
 /// Windows TCP connections information collector

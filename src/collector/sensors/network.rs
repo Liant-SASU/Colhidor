@@ -2,7 +2,10 @@ use std::{cell::RefCell, time::Instant};
 
 use sysinfo::Networks;
 
-use super::{Byte, EnergyUj, NetworkData, Sensor, SensorData, SensorError};
+use super::{
+    EnergyUj, Sensor, SensorData, SensorError,
+    data::{Byte, NetworkData},
+};
 
 const NIC_IDLE_W: f64 = 0.2;
 const NIC_W_PER_MB: f64 = 0.01;
