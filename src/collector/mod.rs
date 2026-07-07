@@ -281,8 +281,11 @@ impl CollectorApp {
                 #[cfg(debug_assertions)]
                 {
                     self.iteration += 1;
-                    if since_last_update > Duration::from_secs(1) {
-                        eprintln!("WARNING: Iteration {} took longer than 1 second.", self.iteration);
+                    if since_last_update > Duration::from_secs(self.capture_interval) {
+                        eprintln!(
+                            "WARNING: Iteration {} took longer than {} second.",
+                            self.iteration, self.capture_interval
+                        );
                     }
                 }
             }
