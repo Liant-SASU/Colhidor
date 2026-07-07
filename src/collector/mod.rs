@@ -2,6 +2,7 @@ pub mod sensors;
 
 use std::{
     cell::RefCell,
+    fmt::Display,
     net::SocketAddr,
     rc::Rc,
     time::{SystemTime, UNIX_EPOCH},
@@ -31,11 +32,22 @@ pub enum ConsumptionUnit {
     UJoul,
 }
 
+impl Display for ConsumptionUnit {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ConsumptionUnit::WattHour => {
+                write!(f, "wh")
+            }
+            ConsumptionUnit::UJoul => write!(f, "μj"),
+        }
+    }
+}
+
 /// MQTT information to interact with a MQTT client
 pub struct MQTTInfo {
     id: String,
     publisher: MQTTPublisherImpl<rumqttc::Client>,
-    unit: Option<ConsumptionUnit>,
+    unit: ConsumptionUnit,
 }
 
 /// Background sensor-collection application.
@@ -50,7 +62,7 @@ pub struct CollectorApp {
 }
 
 impl MQTTInfo {
-    pub fn new(id: &str, addr: &SocketAddr, unit: Option<ConsumptionUnit>) -> Self {
+    pub fn new(id: &str, addr: &SocketAddr, unit: ConsumptionUnit) -> Self {
         let publisher = MQTTPublisherImpl::new_from_addr(addr);
         MQTTInfo {
             id: id.to_string(),
@@ -214,8 +226,7 @@ impl CollectorApp {
     fn publish_event_data(&self, event: &Event, timestamp: u64) {
         if let Some(mqtt_info) = &self.mqtt_info {
             for sensor_data in event.data() {
-                if let Some(unit) = mqtt_info.unit {
-                    match unit {
+                match mqtt_info.unit {
                         ConsumptionUnit::UJoul => self.publish_sensor_data(&sensor_data, timestamp),
                         ConsumptionUnit::WattHour => {
                             let sensor_data_wh: SensorData<EnergyWh> = sensor_data.to_wh();
@@ -225,7 +236,6 @@ impl CollectorApp {
                 }
             }
         }
-    }
 
     /// Runs the collection loop, sampling sensors every capture interval second.
     pub async fn run(&mut self) {
