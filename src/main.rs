@@ -32,7 +32,8 @@ fn options() -> OptionParser<Options> {
         .display_fallback();
 
     let mqtt_id = long("mqtt-id")
-        .help("Identifier used as the root of MQTT topics (e.g. my-machine/cpu, my-machine/ram). Requires --mqtt-addr to be set. Defaults to \"colhidor_collector\".")
+        .help("Identifier used as the root of MQTT topics (e.g. my-device/colhidor/sensor/cpu, my-device/colhidor_collector/sensors/ram). 
+        Requires --mqtt-addr to be set. Defaults to device hostname or \"device\" if impossible.")
         .argument::<String>("ID")
         .optional();
 
@@ -130,7 +131,11 @@ async fn main() {
     }
 
     let mqtt_infos = if let Some(mqtt_addr) = options.mqtt_addr {
-        let id = options.mqtt_id.unwrap_or("colhidor_collector".to_string());
+        let id = options.mqtt_id.unwrap_or(
+            hostname::get()
+                .map(|name| name.to_string_lossy().to_string())
+                .unwrap_or("default".to_string()),
+        );
         let unit = options.mqtt_unit;
         Some(MQTTInfo::new(&id, &mqtt_addr, unit))
     } else {
