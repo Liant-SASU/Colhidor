@@ -6,6 +6,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::collector::sensors::SensorData;
 
+pub const COLHIDOR_TOPIC: &'static str = "colhidor";
+pub const SENSOR_TYPE_TOPIC: &'static str = "sensor";
+pub const HARWARE_INFO_TYPE_TOPIC: &'static str = "hardware_info";
+
 #[derive(Debug)]
 pub enum PublisherError {
     Serialization,
@@ -29,13 +33,11 @@ impl fmt::Display for PublisherError {
 }
 
 pub fn sensor_data_to_topic<T: Clone>(id: &str, sensor_data: &SensorData<T>) -> String {
-    let topic = "sensor_data";
     let type_topic = sensor_data.sensor_kind().to_string().to_lowercase();
 
-    format!("{}/{}/{}", id, topic, type_topic)
+    format!("{}/{}/{}/{}", id, COLHIDOR_TOPIC, SENSOR_TYPE_TOPIC, type_topic)
 }
 
 pub fn hardware_info_topic(id: &str) -> String {
-    let topic = "hardware_info";
-    format!("{}/{}", id, topic)
+    format!("{}/{}/{}", id, COLHIDOR_TOPIC, HARWARE_INFO_TYPE_TOPIC)
 }
