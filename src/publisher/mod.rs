@@ -33,7 +33,7 @@ impl fmt::Display for PublisherError {
 }
 
 pub fn sensor_data_to_topic<T: Clone>(id: &str, sensor_data: &SensorData<T>) -> String {
-    let type_topic = sensor_data.sensor_kind().to_string().to_lowercase();
+    let type_topic = sensor_data.sensor_kind().label().to_lowercase();
 
     format!("{}/{}/{}/{}", id, COLHIDOR_TOPIC, SENSOR_TYPE_TOPIC, type_topic)
 }
