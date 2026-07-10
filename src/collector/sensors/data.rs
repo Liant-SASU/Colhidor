@@ -442,13 +442,13 @@ pub struct BatteryInfo {
 impl SensorKind {
     pub fn label(&self) -> &'static str {
         match self {
-            SensorKind::CPU => "CPU",
-            SensorKind::GPU => "GPU",
+            SensorKind::CPU => "Cpu",
+            SensorKind::GPU => "Gpu",
             SensorKind::Ram => "Ram",
             SensorKind::Disk => "Disk",
             SensorKind::Network => "Network",
             SensorKind::Processes => "Processes",
-            SensorKind::TCPConnections => "TCPConnections",
+            SensorKind::TCPConnections => "TCP-Connections",
         }
     }
 }
