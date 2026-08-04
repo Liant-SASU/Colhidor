@@ -1,5 +1,7 @@
 use std::{cell::RefCell, collections::HashSet, rc::Rc};
 
+#[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+use macmon::Metrics as SiliconMetrics;
 use sysinfo::System;
 
 use super::{
@@ -14,10 +16,15 @@ mod linux_cpu;
 #[cfg(target_os = "windows")]
 pub mod windows_cpu;
 
+#[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+pub mod silicon_cpu;
+
 use estimation::EstimationCPUSensor;
 pub use estimation::estimate_igpu_energy;
 #[cfg(target_os = "linux")]
 use linux_cpu::LinuxCPUSensor;
+#[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+use silicon_cpu::SiliconCPUSensor;
 #[cfg(target_os = "windows")]
 use windows_cpu::WindowsCPUSensor;
 
@@ -27,6 +34,8 @@ pub enum CPUOS {
     WindowsRAPL(WindowsCPUSensor),
     #[cfg(target_os = "linux")]
     LinuxRAPL(LinuxCPUSensor),
+    #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+    AppleSiliconMetrics(SiliconCPUSensor),
     Estimation(EstimationCPUSensor),
 }
 
@@ -43,44 +52,62 @@ impl CPUSensor {
             CPUOS::WindowsRAPL(_) => ("windows", "scaphandre"),
             #[cfg(target_os = "linux")]
             CPUOS::LinuxRAPL(_) => ("linux", "rapl"),
+            #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+            CPUOS::AppleSiliconMetrics(_) => ("apple silicon", "macmon"),
             CPUOS::Estimation(_) => ("estimation", "tdp"),
         }
+    }
+
+    fn read_sysinfo_usage_percent(&self) -> Result<Option<Percent>, SensorError> {
+        let mut sys = self
+            .system
+            .try_borrow_mut()
+            .map_err(|e| SensorError::ReadError(format!("Failed to borrow system: {}", e)))?;
+        sys.refresh_cpu_usage();
+        Ok(Percent::from(sys.global_cpu_usage()))
     }
 }
 
 impl Sensor for CPUSensor {
     fn read_full_data(&self) -> Result<SensorData, SensorError> {
-        // Get CPU usage first (needed for estimation, always populated)
-        let usage_percent = {
-            let mut sys = self
-                .system
-                .try_borrow_mut()
-                .map_err(|e| SensorError::ReadError(format!("Failed to borrow system: {}", e)))?;
-            sys.refresh_cpu_usage();
-            sys.global_cpu_usage() as f64
-        };
-
-        let mut power_data = match &self.sensor {
+        match &self.sensor {
             #[cfg(target_os = "windows")]
-            CPUOS::WindowsRAPL(sensor) => sensor.read_full_data()?,
+            CPUOS::WindowsRAPL(sensor) => {
+                let usage_percent = self.read_sysinfo_usage_percent()?;
+                let data = sensor.read_full_data()?;
+                Ok(match data {
+                    SensorData::CPU(cpu_data) => SensorData::CPU(CPUData {
+                        usage_percent,
+                        ..cpu_data
+                    }),
+                    other => other,
+                })
+            }
             #[cfg(target_os = "linux")]
-            CPUOS::LinuxRAPL(sensor) => sensor.read_full_data()?,
-            CPUOS::Estimation(sensor) => SensorData::CPU(CPUData {
-                total_energy: Some(sensor.estimate(usage_percent)),
-                pp0_energy: None,
-                pp1_energy: None,
-                dram_energy: None,
-                usage_percent: None,
-            }),
-        };
-
-        if let SensorData::CPU(cpu_data) = power_data {
-            power_data = SensorData::CPU(CPUData {
-                usage_percent: Percent::from(usage_percent as f32),
-                ..cpu_data
-            });
+            CPUOS::LinuxRAPL(sensor) => {
+                let usage_percent = self.read_sysinfo_usage_percent()?;
+                let data = sensor.read_full_data()?;
+                Ok(match data {
+                    SensorData::CPU(cpu_data) => SensorData::CPU(CPUData {
+                        usage_percent,
+                        ..cpu_data
+                    }),
+                    other => other,
+                })
+            }
+            #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+            CPUOS::AppleSiliconMetrics(sensor) => sensor.read_full_data(),
+            CPUOS::Estimation(sensor) => {
+                let usage_percent = self.read_sysinfo_usage_percent()?;
+                Ok(SensorData::CPU(CPUData {
+                    total_energy: Some(sensor.estimate(usage_percent.as_ref().map(Percent::as_f32).unwrap_or(0.0))),
+                    pp0_energy: None,
+                    pp1_energy: None,
+                    dram_energy: None,
+                    usage_percent,
+                }))
+            }
         }
-        Ok(power_data)
     }
 
     fn read_initial_info(&self) -> Result<InitialInfo, SensorError> {
@@ -161,6 +188,7 @@ pub fn get_cpu_list(system: Rc<RefCell<System>>) -> Result<Vec<String>, String> 
         .collect())
 }
 
+#[cfg(not(all(target_os = "macos", target_arch = "aarch64")))]
 /// Creates the best available CPU power sensor, falling back to TDP estimation.
 pub fn get_cpu_power_sensor(system: Rc<RefCell<System>>, index: usize) -> Result<SensorType, SensorError> {
     let s = system
@@ -175,7 +203,6 @@ pub fn get_cpu_power_sensor(system: Rc<RefCell<System>>, index: usize) -> Result
     };
     drop(s);
 
-    // Try platform-specific sensor first, fall back to TDP estimation
     #[cfg(target_os = "windows")]
     match WindowsCPUSensor::new(&vendor_id) {
         Ok(sensor) => {
@@ -205,6 +232,17 @@ pub fn get_cpu_power_sensor(system: Rc<RefCell<System>>, index: usize) -> Result
     Ok(SensorType::CPU(CPUSensor {
         sensor: CPUOS::Estimation(EstimationCPUSensor::new(tdp)),
         system: system.clone(),
+    }))
+}
+
+#[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+pub fn get_cpu_power_sensor(
+    system: Rc<RefCell<System>>,
+    shared_metrics: Rc<RefCell<Option<SiliconMetrics>>>,
+) -> Result<SensorType, SensorError> {
+    Ok(SensorType::CPU(CPUSensor {
+        sensor: CPUOS::AppleSiliconMetrics(SiliconCPUSensor::new(shared_metrics)),
+        system,
     }))
 }
 

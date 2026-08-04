@@ -133,10 +133,10 @@ impl EstimationCPUSensor {
     }
 
     /// Estimates energy comsumption since last call from CPU usage percentage.
-    pub fn estimate(&self, usage_percent: f64) -> EnergyUj {
+    pub fn estimate(&self, usage_percent: f32) -> EnergyUj {
         let now = Instant::now();
         let duration = now.duration_since(*self.last_reading.borrow());
         *self.last_reading.borrow_mut() = now;
-        estimate_energy(self.tdp, usage_percent, duration)
+        estimate_energy(self.tdp, usage_percent as f64, duration)
     }
 }
