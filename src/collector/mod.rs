@@ -128,48 +128,56 @@ impl CollectorApp {
             crate::clog!("⚠ No supported GPU adapters detected.");
         }
 
-        let (mut nvidia_index, mut amd_index, mut intel_index) = (0u32, 0u32, 0u32);
-        for gpu_name in &gpu_list {
-            let vendor = GPUVendor::from_str(gpu_name);
-            let vendor_index = match vendor {
-                GPUVendor::Nvidia => {
-                    let idx = nvidia_index;
-                    nvidia_index += 1;
-                    idx
-                }
-                GPUVendor::Amd => {
-                    let idx = amd_index;
-                    amd_index += 1;
-                    idx
-                }
-                GPUVendor::Intel => {
-                    let idx = intel_index;
-                    intel_index += 1;
-                    idx
-                }
-                GPUVendor::Other => 0,
-            };
+        #[cfg(not(all(target_os = "macos", target_arch = "aarch64")))]
+        {
+            let (mut nvidia_index, mut amd_index, mut intel_index) = (0u32, 0u32, 0u32);
+            for gpu_name in &gpu_list {
+                let vendor = GPUVendor::from_str(gpu_name);
+                let vendor_index = match vendor {
+                    GPUVendor::Nvidia => {
+                        let idx = nvidia_index;
+                        nvidia_index += 1;
+                        idx
+                    }
+                    GPUVendor::Amd => {
+                        let idx = amd_index;
+                        amd_index += 1;
+                        idx
+                    }
+                    GPUVendor::Intel => {
+                        let idx = intel_index;
+                        intel_index += 1;
+                        idx
+                    }
+                    GPUVendor::Other => 0,
+                };
 
-            match sensors::gpu::get_gpu_energy_sensor(gpu_name, vendor_index) {
-                Ok(sensor) => {
-                    crate::clog!(
-                        "✓ GPU sensor initialized: '{}' (vendor={:?}, vendor_index={})",
-                        gpu_name,
-                        vendor,
-                        vendor_index
-                    );
-                    self.sensors.push(sensor);
-                }
-                Err(e) => {
-                    crate::clog!(
-                        "✗ Failed to initialize GPU sensor for '{}' (vendor={:?}, vendor_index={}): {:?}",
-                        gpu_name,
-                        vendor,
-                        vendor_index,
-                        e
-                    );
+                match sensors::gpu::get_gpu_energy_sensor(gpu_name, vendor_index) {
+                    Ok(sensor) => {
+                        crate::clog!(
+                            "✓ GPU sensor initialized: '{}' (vendor={:?}, vendor_index={})",
+                            gpu_name,
+                            vendor,
+                            vendor_index
+                        );
+                        self.sensors.push(sensor);
+                    }
+                    Err(e) => {
+                        crate::clog!(
+                            "✗ Failed to initialize GPU sensor for '{}' (vendor={:?}, vendor_index={}): {:?}",
+                            gpu_name,
+                            vendor,
+                            vendor_index,
+                            e
+                        );
+                    }
                 }
             }
+        }
+        #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+        {
+            let sensor = sensors::gpu::get_gpu_energy_sensor(self.shared_metrics.clone());
+            self.sensors.push(sensor);
         }
 
         // RAM, Disk, Network sensors
