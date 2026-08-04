@@ -1,6 +1,11 @@
 use std::collections::HashMap;
+#[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+use std::{cell::RefCell, rc::Rc};
 
-use super::{InitialInfo, Sensor, SensorData, SensorError, SensorType, data::Percent};
+#[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+use macmon::Metrics;
+
+use super::{InitialInfo, Percent, Sensor, SensorData, SensorError, SensorType};
 
 #[cfg(not(all(target_os = "macos", target_arch = "aarch64")))]
 /// GPU hardware vendor identifier.
@@ -9,8 +14,6 @@ pub enum GPUVendor {
     Nvidia,
     Amd,
     Intel,
-    #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
-    AppleSilicon,
     Other,
 }
 
@@ -115,9 +118,7 @@ pub enum GPUSensor {
     #[cfg(target_os = "windows")]
     Intel { sensor: intel_gpu::IntelGPUSensor },
     #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
-    AppleSilicon {
-        sensor: apple_silicon_gpu::SiliconGPUSensor,
-    },
+    AppleSilicon(apple_silicon_gpu::SiliconGPUSensor),
 }
 
 impl Sensor for GPUSensor {
@@ -130,8 +131,11 @@ impl Sensor for GPUSensor {
             #[cfg(target_os = "windows")]
             GPUSensor::Intel { sensor } => sensor.read_full_data(),
             #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
-            GPUSensor::AppleSilicon { sensor } => sensor.read_full_data(),
-            #[cfg(not(any(target_os = "windows", target_os = "linux")))]
+            GPUSensor::AppleSilicon(sensor) => sensor.read_full_data(),
+            #[cfg(not(any(
+                not(any(target_os = "windows", target_os = "linux")),
+                not(all(target_os = "macos", target_arch = "aarch64"))
+            )))]
             _ => Err(SensorError::NotSupported),
         }
     }
@@ -179,8 +183,10 @@ pub fn get_gpu_energy_sensor(vendor_id: &str, index: u32) -> Result<SensorType, 
 }
 
 #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
-pub fn get_gpu_energy_sensor(shared_metrics: Rc<RefCell<Option<Metrics>>>) {
-    apple_silicon_gpu::SiliconGPUSensor::new(shared_metrics)
+pub fn get_gpu_energy_sensor(shared_metrics: Rc<RefCell<Option<Metrics>>>) -> SensorType {
+    SensorType::GPU(GPUSensor::AppleSilicon(apple_silicon_gpu::SiliconGPUSensor::new(
+        shared_metrics,
+    )))
 }
 
 impl GPUSensor {
@@ -575,7 +581,7 @@ mod apple_silicon_gpu {
 
     use macmon::Metrics;
 
-    use super::super::{EnergyUj, GPUData, Percent, SensorData, SensorError};
+    use super::super::{EnergyUj, GPUData, Percent, Sensor, SensorData, SensorError};
 
     pub struct SiliconGPUSensor {
         shared_metrics: Rc<RefCell<Option<Metrics>>>,
@@ -589,8 +595,10 @@ mod apple_silicon_gpu {
                 last_reading: RefCell::new(None),
             }
         }
+    }
 
-        pub fn read_full_data(&self) -> Result<SensorData, SensorError> {
+    impl Sensor for SiliconGPUSensor {
+        fn read_full_data(&self) -> Result<SensorData, SensorError> {
             let metrics_ref = self.shared_metrics.borrow();
             let metrics = metrics_ref
                 .as_ref()

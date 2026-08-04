@@ -12,12 +12,11 @@ use std::{
 
 #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
 use macmon::Metrics as SiliconMetrics;
+#[cfg(not(all(target_os = "macos", target_arch = "aarch64")))]
+use sensors::gpu::GPUVendor;
 use sensors::{
-    DiskSensor, Event, NetworkSensor, ProcessesSensor, RamSensor, SensorData, SensorType, TCPConnectionsSensor,
-    create_event_from_sensors,
-    data::EnergyWh,
-    get_hardware_info,
-    gpu::{GPUVendor, get_gpu_list},
+    DiskSensor, EnergyWh, Event, NetworkSensor, ProcessesSensor, RamSensor, SensorData, SensorType,
+    TCPConnectionsSensor, create_event_from_sensors, get_hardware_info, gpu::get_gpu_list,
 };
 use serde::Serialize;
 use sysinfo::System;
@@ -121,15 +120,15 @@ impl CollectorApp {
             Err(e) => crate::clog!("✗ Failed to initialize CPU Power Sensor: {:?}", e),
         }
 
-        // GPU sensors
-        let gpu_list = get_gpu_list();
-        crate::clog!("\nDetected GPUs: {gpu_list:#?}");
-        if gpu_list.is_empty() {
-            crate::clog!("⚠ No supported GPU adapters detected.");
-        }
-
         #[cfg(not(all(target_os = "macos", target_arch = "aarch64")))]
         {
+            // GPU sensors
+            let gpu_list = get_gpu_list();
+            crate::clog!("\nDetected GPUs: {gpu_list:#?}");
+            if gpu_list.is_empty() {
+                crate::clog!("⚠ No supported GPU adapters detected.");
+            }
+
             let (mut nvidia_index, mut amd_index, mut intel_index) = (0u32, 0u32, 0u32);
             for gpu_name in &gpu_list {
                 let vendor = GPUVendor::from_str(gpu_name);
