@@ -296,6 +296,7 @@ pub struct TCPConnectionData {
 #[derive(Debug, Clone, Serialize)]
 pub struct TCPConnectionsData(pub Vec<TCPConnectionData>);
 
+#[derive(Debug, Clone, Serialize)]
 #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
 pub struct ANEData<E = EnergyUj> {
     pub total_energy: Option<E>,
@@ -312,7 +313,7 @@ pub enum SensorData<E = EnergyUj> {
     Processes(ProcessesData),
     TCPConnections(TCPConnectionsData),
     #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
-    ANE(ANEData),
+    ANE(ANEData<E>),
 }
 
 /// Sensor component category type.
@@ -696,6 +697,7 @@ impl<T: Display> Display for SensorData<T> {
                         .map(|c| format!("{c}"))
                         .unwrap_or_else(|| "N/A".to_string())
                 )?;
+                Ok(())
             }
         }
     }
@@ -776,6 +778,15 @@ impl NetworkData {
             total_energy: self.total_energy.map(|t| t.to_wh()),
             downloaded_bytes: self.downloaded_bytes,
             uploaded_bytes: self.uploaded_bytes,
+        }
+    }
+}
+
+#[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+impl ANEData {
+    fn to_wh(&self) -> ANEData<EnergyWh> {
+        ANEData {
+            total_energy: self.total_energy.map(|t| t.to_wh()),
         }
     }
 }

@@ -176,7 +176,6 @@ impl CollectorApp {
                 }
             }
         }
-        #[cfg(not(all(target_os = "macos", target_arch = "aarch64")))]
         #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
         {
             let sensor = sensors::gpu::get_gpu_energy_sensor(self.shared_metrics.clone());
@@ -197,7 +196,8 @@ impl CollectorApp {
 
         // ANE sensor
         #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
-        self.sensors.push(SensorType::ANE(ANESensor::new()));
+        self.sensors
+            .push(SensorType::ANE(ANESensor::new(self.shared_metrics.clone())));
 
         //  Processes sensors
         let hostname = hostname::get().unwrap_or_default().to_string_lossy().to_string();

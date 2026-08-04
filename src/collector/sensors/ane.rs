@@ -2,7 +2,7 @@ use std::{cell::RefCell, rc::Rc, time::Instant};
 
 use macmon::Metrics;
 
-use super::super::{CPUData, EnergyUj, Percent, SensorData, SensorError};
+use super::{ANEData, EnergyUj, SensorData, SensorError};
 
 pub struct ANESensor {
     shared_metrics: Rc<RefCell<Option<Metrics>>>,

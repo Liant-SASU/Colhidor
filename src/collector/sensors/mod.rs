@@ -1,3 +1,5 @@
+#[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+pub mod ane;
 pub mod cpu;
 pub mod data;
 pub mod disk;
@@ -12,6 +14,8 @@ use std::{
     time::{Duration, SystemTime},
 };
 
+#[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+pub use ane::ANESensor;
 use battery::Manager;
 pub use cpu::CPUSensor;
 pub use data::{
