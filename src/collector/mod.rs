@@ -8,6 +8,8 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
+#[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+use macmon::{Metrics as SiliconMetrics, Sampler as SiliconSampler};
 use sensors::{
     DiskSensor, Event, NetworkSensor, ProcessesSensor, RamSensor, SensorData, SensorType, TCPConnectionsSensor,
     create_event_from_sensors,
@@ -85,6 +87,9 @@ impl CollectorApp {
             last_timestamp: None,
             #[cfg(debug_assertions)]
             iteration: 0,
+
+            #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+            silicon_sampler: SiliconSampler,
         })
     }
 
@@ -94,6 +99,9 @@ impl CollectorApp {
         start_log_session();
 
         crate::clog!("\n========== INITIALIZING SYSTEM ==========\n");
+
+        #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+        let silicon_sampler = SiliconSampler::new().map_err(|err| err.to_string())?;
 
         // CPU sensor
         crate::clog!("Initializing sensors...");
