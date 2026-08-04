@@ -5,7 +5,10 @@ use std::{cell::RefCell, rc::Rc};
 #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
 use macmon::Metrics;
 
-use super::{InitialInfo, Percent, Sensor, SensorData, SensorError, SensorType};
+use super::{
+    Sensor, SensorError, SensorType,
+    data::{InitialInfo, Percent, SensorData},
+};
 
 #[cfg(not(all(target_os = "macos", target_arch = "aarch64")))]
 /// GPU hardware vendor identifier.

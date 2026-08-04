@@ -12,11 +12,14 @@ use std::{
 
 #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
 use macmon::Metrics as SiliconMetrics;
+#[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+use sensors::ANESensor;
 #[cfg(not(all(target_os = "macos", target_arch = "aarch64")))]
 use sensors::gpu::{GPUVendor, get_gpu_list};
 use sensors::{
-    DiskSensor, EnergyWh, Event, NetworkSensor, ProcessesSensor, RamSensor, SensorData, SensorType,
-    TCPConnectionsSensor, create_event_from_sensors, get_hardware_info,
+    DiskSensor, NetworkSensor, ProcessesSensor, RamSensor, SensorType, TCPConnectionsSensor, create_event_from_sensors,
+    data::{EnergyWh, Event, SensorData},
+    get_hardware_info,
 };
 use serde::Serialize;
 use sysinfo::System;
@@ -191,6 +194,10 @@ impl CollectorApp {
         // RAM, Disk, Network sensors
         self.sensors.push(SensorType::Disk(DiskSensor::new()));
         self.sensors.push(SensorType::Network(NetworkSensor::new()));
+
+        // ANE sensor
+        #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+        self.sensors.push(SensorType::ANE(ANESensor::new()));
 
         //  Processes sensors
         let hostname = hostname::get().unwrap_or_default().to_string_lossy().to_string();

@@ -3,7 +3,10 @@ use std::{cell::RefCell, rc::Rc, time::Instant};
 #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
 use macmon::Metrics as SiliconMetrics;
 
-use super::{EnergyUj, InitialInfo, MemoryInfo, Percent, RamData, Sensor, SensorData, SensorError, System};
+use super::{
+    Sensor, SensorError, System,
+    data::{EnergyUj, InitialInfo, MemoryInfo, Percent, RamData, SensorData},
+};
 
 /// RAM usage sensor backed by sysinfo.
 pub struct RamSensor {
