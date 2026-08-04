@@ -609,8 +609,9 @@ mod apple_silicon_gpu {
             let elapsed_secs = last.map(|prev| now.duration_since(prev).as_secs_f64());
             *last = Some(now);
 
-            let total_energy =
-                elapsed_secs.map(|secs| EnergyUj::from_f64(metrics.gpu_power as f64 * secs * 1_000_000.0));
+            let total_energy = elapsed_secs.map(|secs| {
+                EnergyUj::from_f64((metrics.gpu_power + metrics.gpu_ram_power) as f64 * secs * 1_000_000.0)
+            });
 
             let usage_percent = Percent::from((metrics.gpu_scaled_ratio * 100.0) as f32);
 
