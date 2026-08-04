@@ -13,10 +13,10 @@ use std::{
 #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
 use macmon::Metrics as SiliconMetrics;
 #[cfg(not(all(target_os = "macos", target_arch = "aarch64")))]
-use sensors::gpu::GPUVendor;
+use sensors::gpu::{GPUVendor, get_gpu_list};
 use sensors::{
     DiskSensor, EnergyWh, Event, NetworkSensor, ProcessesSensor, RamSensor, SensorData, SensorType,
-    TCPConnectionsSensor, create_event_from_sensors, get_hardware_info, gpu::get_gpu_list,
+    TCPConnectionsSensor, create_event_from_sensors, get_hardware_info,
 };
 use serde::Serialize;
 use sysinfo::System;
@@ -173,14 +173,22 @@ impl CollectorApp {
                 }
             }
         }
+        #[cfg(not(all(target_os = "macos", target_arch = "aarch64")))]
         #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
         {
             let sensor = sensors::gpu::get_gpu_energy_sensor(self.shared_metrics.clone());
             self.sensors.push(sensor);
         }
+        // Ram sensor
+        #[cfg(not(all(target_os = "macos", target_arch = "aarch64")))]
+        self.sensors.push(SensorType::RAM(RamSensor::new(self.system.clone())));
+        #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+        self.sensors.push(SensorType::RAM(RamSensor::new(
+            self.system.clone(),
+            self.shared_metrics.clone(),
+        )));
 
         // RAM, Disk, Network sensors
-        self.sensors.push(SensorType::RAM(RamSensor::new(self.system.clone())));
         self.sensors.push(SensorType::Disk(DiskSensor::new()));
         self.sensors.push(SensorType::Network(NetworkSensor::new()));
 
