@@ -1,4 +1,6 @@
 pub mod sensors;
+#[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+mod silicon_sampler;
 
 use std::{
     cell::RefCell,
@@ -9,7 +11,7 @@ use std::{
 };
 
 #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
-use macmon::{Metrics as SiliconMetrics, Sampler as SiliconSampler};
+use macmon::Metrics as SiliconMetrics;
 use sensors::{
     DiskSensor, Event, NetworkSensor, ProcessesSensor, RamSensor, SensorData, SensorType, TCPConnectionsSensor,
     create_event_from_sensors,
@@ -52,13 +54,14 @@ pub struct MQTTInfo {
     unit: ConsumptionUnit,
 }
 
-/// Background sensor-collection application.
 pub struct CollectorApp {
     mqtt_info: Option<MQTTInfo>,
     sensors: Vec<SensorType>,
     system: Rc<RefCell<System>>,
     capture_interval: u64,
     last_timestamp: Option<u64>,
+    #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+    shared_metrics: Rc<RefCell<Option<SiliconMetrics>>>,
     #[cfg(debug_assertions)]
     iteration: u64,
 }
@@ -87,9 +90,8 @@ impl CollectorApp {
             last_timestamp: None,
             #[cfg(debug_assertions)]
             iteration: 0,
-
             #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
-            silicon_sampler: SiliconSampler,
+            shared_metrics: Rc::new(RefCell::new(None)),
         })
     }
 
@@ -100,12 +102,14 @@ impl CollectorApp {
 
         crate::clog!("\n========== INITIALIZING SYSTEM ==========\n");
 
-        #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
-        let silicon_sampler = SiliconSampler::new().map_err(|err| err.to_string())?;
-
         // CPU sensor
         crate::clog!("Initializing sensors...");
-        match sensors::cpu::get_cpu_power_sensor(self.system.clone(), 0) {
+        #[cfg(not(all(target_os = "macos", target_arch = "aarch64")))]
+        let cpu_sensor_result = sensors::cpu::get_cpu_power_sensor(self.system.clone(), 0);
+        #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+        let cpu_sensor_result = sensors::cpu::get_cpu_power_sensor(self.system.clone(), self.shared_metrics.clone());
+
+        match cpu_sensor_result {
             Ok(sensor) => {
                 if let SensorType::CPU(cpu_sensor) = &sensor {
                     let (os_label, mode_label) = cpu_sensor.power_mode_labels();
@@ -245,8 +249,15 @@ impl CollectorApp {
         }
     }
 
+    #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+    fn update_silicon_metrics(&mut self, silicon_metrics_rx: &std::sync::mpsc::Receiver<SiliconMetrics>) {
+        if let Some(metrics) = silicon_sampler::try_recv_latest(silicon_metrics_rx) {
+            *self.shared_metrics.borrow_mut() = Some(metrics);
+        }
+    }
+
     /// Runs the collection loop, sampling sensors every capture interval second.
-    pub async fn run(&mut self) {
+    pub async fn run(mut self) {
         #[cfg(debug_assertions)]
         println!("\n========== POWER CONSUMPTION MONITORING ==========\nPress Ctrl+C to stop.\n");
 
@@ -256,6 +267,9 @@ impl CollectorApp {
             return;
         };
 
+        #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+        let (silicon_sampler, silicon_metrics_rx) = silicon_sampler::SiliconSampler::new();
+
         // To synchronize machines timestamp on the modulo
         let remaining_secs = self.capture_interval - (now.as_secs() % self.capture_interval);
         let remaining = Duration::from_secs(remaining_secs) - Duration::from_millis(now.subsec_millis() as u64);
@@ -263,6 +277,9 @@ impl CollectorApp {
         sleep_until(Instant::now() + remaining).await;
 
         let mut interval = interval(Duration::from_secs(self.capture_interval));
+
+        #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+        silicon_sampler.run((self.capture_interval * 1000) as u32);
 
         loop {
             interval.tick().await;
@@ -276,6 +293,9 @@ impl CollectorApp {
 
                 #[cfg(debug_assertions)]
                 println!("\n--- Iteration {} (timestamp : {}) ---", self.iteration, timestamp);
+
+                #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+                self.update_silicon_metrics(&silicon_metrics_rx);
 
                 let event = create_event_from_sensors(&self.sensors, since_last_update);
 

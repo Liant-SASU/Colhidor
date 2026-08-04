@@ -2,6 +2,7 @@ use std::{cell::RefCell, time::Instant};
 
 use super::super::{EnergyUj, data::Percent};
 
+#[cfg(not(all(target_os = "macos", target_arch = "aarch64")))]
 static TDP_TABLE: &[(&str, f64)] = &[
     // Intel Desktop (12th–14th gen)
     ("i9-14900", 125.0),
@@ -65,6 +66,7 @@ static TDP_TABLE: &[(&str, f64)] = &[
     ("Apple M4", 20.0),
 ];
 
+#[cfg(not(all(target_os = "macos", target_arch = "aarch64")))]
 const DEFAULT_TDP: f64 = 65.0;
 const DEFAULT_BOOST_MULTIPLIER: f64 = 1.25;
 
@@ -73,6 +75,7 @@ const IGPU_DEFAULT_TDP: f64 = 15.0;
 /// Idle power floor for an integrated GPU (watts).
 const IGPU_IDLE_POWER: f64 = 0.01;
 
+#[cfg(not(all(target_os = "macos", target_arch = "aarch64")))]
 /// Looks up the TDP for a CPU model name, falling back to a default.
 pub fn lookup_tdp(cpu_name: &str) -> f64 {
     let name_lower = cpu_name.to_lowercase();

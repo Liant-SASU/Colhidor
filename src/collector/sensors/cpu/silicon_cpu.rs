@@ -2,8 +2,7 @@ use std::{cell::RefCell, rc::Rc, time::Instant};
 
 use macmon::Metrics;
 
-use super::{CPUData, Percent, SensorData, SensorError};
-use crate::common::units::EnergyUj;
+use super::super::{CPUData, EnergyUj, Percent, SensorData, SensorError};
 
 pub struct SiliconCPUSensor {
     shared_metrics: Rc<RefCell<Option<Metrics>>>,
@@ -26,12 +25,12 @@ impl SiliconCPUSensor {
 
         let now = Instant::now();
         let mut last = self.last_reading.borrow_mut();
-        let elapsed = last.map(|prev| now.duration_since(prev).as_secs_f64());
-        last = Some(now);
+        let elapsed_secs = last.map(|prev| now.duration_since(prev).as_secs_f64());
+        *last = Some(now);
 
-        let total_energy = elapsed.map(|secs| EnergyUj::from_f64(metrics.cpu_power * secs * 1_000_000.0));
+        let total_energy = elapsed_secs.map(|secs| EnergyUj::from_f64(metrics.cpu_power as f64 * secs * 1_000_000.0));
 
-        let usage_percent = Percent::from((metrics.cpu_usage_pct * 100.0) as f32);
+        let usage_percent = Percent::from((metrics.cpu_scaled_ratio * 100.0) as f32);
 
         Ok(SensorData::CPU(CPUData {
             total_energy,
