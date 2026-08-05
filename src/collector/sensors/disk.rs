@@ -18,7 +18,7 @@ const UNKNOWN_W_PER_MB: f64 = 0.02;
 /// Disk I/O sensor that estimates power from throughput.
 pub struct DiskSensor {
     disks: RefCell<Disks>,
-    last_reading: RefCell<Instant>,
+    last_reading: RefCell<Option<Instant>>,
 }
 
 impl DiskSensor {
@@ -26,26 +26,27 @@ impl DiskSensor {
     pub fn new() -> Self {
         Self {
             disks: RefCell::new(Disks::new_with_refreshed_list()),
-            last_reading: RefCell::new(Instant::now()),
+            last_reading: RefCell::new(None),
         }
     }
 }
 
 impl Sensor for DiskSensor {
     fn read_full_data(&self) -> Result<SensorData, SensorError> {
-        let now = Instant::now();
-        let duration = now.duration_since(*self.last_reading.borrow()).as_secs_f64().max(0.001);
-
-        let mut read_bytes = 0;
-        let mut written_bytes = 0;
-
-        let mut total_energy_j = 0.0;
-
         let mut disks = self
             .disks
             .try_borrow_mut()
             .map_err(|e| SensorError::ReadError(format!("Failed to borrow disks: {}", e)))?;
         disks.refresh(true);
+
+        let now = Instant::now();
+        let mut last = self.last_reading.borrow_mut();
+        let elapsed_secs = last.map(|prev| now.duration_since(prev).as_secs_f64());
+
+        let mut read_bytes = 0;
+        let mut written_bytes = 0;
+
+        let mut total_power = 0.0;
 
         for disk in disks.iter() {
             let usage = disk.usage();
@@ -64,13 +65,17 @@ impl Sensor for DiskSensor {
                 _ => (UNKNOWN_IDLE_W, UNKNOWN_W_PER_MB),
             };
             let power = idle + throughput * per_mb;
-            total_energy_j += power * duration;
+            total_power += power;
         }
-
-        *self.last_reading.borrow_mut() = now;
+        let total_energy_uj = if let Some(duration) = elapsed_secs {
+            Some(EnergyUj::from_joules(total_power * duration))
+        } else {
+            None
+        };
+        *last = Some(now);
 
         Ok(SensorData::Disk(DiskData {
-            total_energy: Some(EnergyUj::from_joules(total_energy_j)),
+            total_energy: total_energy_uj,
             read_bytes: Byte::from(read_bytes),
             written_bytes: Byte::from(written_bytes),
         }))
