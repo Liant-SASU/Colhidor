@@ -199,7 +199,7 @@ impl GPUSensor {
             #[cfg(any(target_os = "windows", target_os = "linux"))]
             GPUSensor::Nvidia(sensor) => sensor.get_processes_gpu_usage(_current_timestamp),
             #[cfg(target_os = "windows")]
-            GPUSensor::Amd(_) | GPUSensor::Intel { .. } | GPUSensor::AppleSilicon(_) => Err(SensorError::NotSupported),
+            GPUSensor::Amd(_) | GPUSensor::Intel { .. } => Err(SensorError::NotSupported),
             #[cfg(not(any(target_os = "windows", target_os = "linux")))]
             _ => Err(SensorError::NotSupported),
         }
