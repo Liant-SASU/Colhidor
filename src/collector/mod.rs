@@ -123,9 +123,9 @@ impl CollectorApp {
             Err(e) => crate::clog!("✗ Failed to initialize CPU Power Sensor: {:?}", e),
         }
 
+        // GPU sensor
         #[cfg(not(all(target_os = "macos", target_arch = "aarch64")))]
         {
-            // GPU sensors
             let gpu_list = get_gpu_list();
             crate::clog!("\nDetected GPUs: {gpu_list:#?}");
             if gpu_list.is_empty() {
@@ -181,6 +181,7 @@ impl CollectorApp {
             let sensor = sensors::gpu::get_gpu_energy_sensor(self.shared_metrics.clone());
             self.sensors.push(sensor);
         }
+
         // Ram sensor
         #[cfg(not(all(target_os = "macos", target_arch = "aarch64")))]
         self.sensors.push(SensorType::RAM(RamSensor::new(self.system.clone())));
@@ -190,7 +191,7 @@ impl CollectorApp {
             self.shared_metrics.clone(),
         )));
 
-        // RAM, Disk, Network sensors
+        // Disk, Network sensors
         self.sensors.push(SensorType::Disk(DiskSensor::new()));
         self.sensors.push(SensorType::Network(NetworkSensor::new()));
 
@@ -206,7 +207,7 @@ impl CollectorApp {
             hostname.to_string(),
         )));
 
-        // TCP Connections sensor
+        // TCP Connections sensors
         self.sensors
             .push(SensorType::TCPConnections(TCPConnectionsSensor::new(hostname)));
 
