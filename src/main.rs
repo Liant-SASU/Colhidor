@@ -143,7 +143,7 @@ async fn main() {
     };
 
     match start_collector(options.capture_interval, mqtt_infos) {
-        Ok(mut app) => app.run().await,
+        Ok(app) => app.run().await,
         Err(e) => crate::clog!("✗ {e}"),
     }
 }

@@ -1,3 +1,5 @@
+#[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+pub mod ane;
 pub mod cpu;
 pub mod data;
 pub mod disk;
@@ -12,6 +14,8 @@ use std::{
     time::{Duration, SystemTime},
 };
 
+#[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+pub use ane::ANESensor;
 use battery::Manager;
 pub use cpu::CPUSensor;
 pub use data::{
@@ -38,6 +42,8 @@ pub enum SensorType {
     Network(NetworkSensor),
     Processes(ProcessesSensor),
     TCPConnections(TCPConnectionsSensor),
+    #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+    ANE(ANESensor),
 }
 
 impl SensorType {
@@ -51,6 +57,8 @@ impl SensorType {
             SensorType::Network(_) => SensorKind::Network,
             SensorType::Processes(_) => SensorKind::Processes,
             SensorType::TCPConnections(_) => SensorKind::TCPConnections,
+            #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+            SensorType::ANE(_) => SensorKind::ANE,
         }
     }
 }
@@ -65,6 +73,8 @@ impl Sensor for SensorType {
             SensorType::Network(sensor) => sensor.read_full_data(),
             SensorType::Processes(sensor) => sensor.read_full_data(),
             SensorType::TCPConnections(sensor) => sensor.read_full_data(),
+            #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+            SensorType::ANE(sensor) => sensor.read_full_data(),
         }
     }
 
@@ -77,6 +87,8 @@ impl Sensor for SensorType {
             SensorType::Network(_) => Err(SensorError::NotSupported),
             SensorType::Processes(_) => Err(SensorError::NotSupported),
             SensorType::TCPConnections(_) => Err(SensorError::NotSupported),
+            #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+            SensorType::ANE(_) => Err(SensorError::NotSupported),
         }
     }
 
@@ -89,6 +101,8 @@ impl Sensor for SensorType {
             SensorType::RAM(_) => Err(SensorError::NotSupported),
             SensorType::Processes(_) => Err(SensorError::NotSupported),
             SensorType::TCPConnections(_) => Err(SensorError::NotSupported),
+            #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+            SensorType::ANE(_) => Err(SensorError::NotSupported),
         }
     }
 }

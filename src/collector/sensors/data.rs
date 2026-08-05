@@ -296,6 +296,12 @@ pub struct TCPConnectionData {
 #[derive(Debug, Clone, Serialize)]
 pub struct TCPConnectionsData(pub Vec<TCPConnectionData>);
 
+#[derive(Debug, Clone, Serialize)]
+#[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+pub struct ANEData<E = EnergyUj> {
+    pub total_energy: Option<E>,
+}
+
 /// Tagged union of all sensor reading types.
 #[derive(Debug, Clone, Serialize)]
 pub enum SensorData<E = EnergyUj> {
@@ -306,6 +312,8 @@ pub enum SensorData<E = EnergyUj> {
     Network(NetworkData<E>),
     Processes(ProcessesData),
     TCPConnections(TCPConnectionsData),
+    #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+    ANE(ANEData<E>),
 }
 
 /// Sensor component category type.
@@ -318,6 +326,8 @@ pub enum SensorKind {
     Network,
     Processes,
     TCPConnections,
+    #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+    ANE,
 }
 
 /// Hardware information variant collected at startup.
@@ -442,13 +452,15 @@ pub struct BatteryInfo {
 impl SensorKind {
     pub fn label(&self) -> &'static str {
         match self {
-            SensorKind::CPU => "Cpu",
-            SensorKind::GPU => "Gpu",
+            SensorKind::CPU => "CPU",
+            SensorKind::GPU => "GPU",
             SensorKind::Ram => "Ram",
             SensorKind::Disk => "Disk",
             SensorKind::Network => "Network",
             SensorKind::Processes => "Processes",
-            SensorKind::TCPConnections => "TCP-Connections",
+            SensorKind::TCPConnections => "TCPConnections",
+            #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+            SensorKind::ANE => "ANE",
         }
     }
 }
@@ -464,6 +476,8 @@ impl<E: Clone> SensorData<E> {
             SensorData::Network(_) => SensorKind::Network,
             SensorData::Processes(_) => SensorKind::Processes,
             SensorData::TCPConnections(_) => SensorKind::TCPConnections,
+            #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+            SensorData::ANE(_) => SensorKind::ANE,
         }
     }
 
@@ -477,6 +491,8 @@ impl<E: Clone> SensorData<E> {
             SensorData::Network(data) => data.total_energy.clone(),
             SensorData::Processes(_) => None,
             SensorData::TCPConnections(_) => None,
+            #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+            SensorData::ANE(data) => data.total_energy.clone(),
         }
     }
 }
@@ -491,6 +507,8 @@ impl Display for SensorKind {
             SensorKind::Network => write!(f, "Network"),
             SensorKind::Processes => write!(f, "Processes"),
             SensorKind::TCPConnections => write!(f, "TCP Connections"),
+            #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+            SensorKind::ANE => write!(f, "ANE"),
         }
     }
 }
@@ -668,6 +686,19 @@ impl<T: Display> Display for SensorData<T> {
                 }
                 Ok(())
             }
+            #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+            SensorData::ANE(data) => {
+                writeln!(f, "ANE:")?;
+                writeln!(
+                    f,
+                    "   Energy:             {}",
+                    data.total_energy
+                        .as_ref()
+                        .map(|c| format!("{c}"))
+                        .unwrap_or_else(|| "N/A".to_string())
+                )?;
+                Ok(())
+            }
         }
     }
 }
@@ -751,6 +782,15 @@ impl NetworkData {
     }
 }
 
+#[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+impl ANEData {
+    fn to_wh(&self) -> ANEData<EnergyWh> {
+        ANEData {
+            total_energy: self.total_energy.map(|t| t.to_wh()),
+        }
+    }
+}
+
 impl SensorData {
     pub fn to_wh(&self) -> SensorData<EnergyWh> {
         match self {
@@ -761,6 +801,8 @@ impl SensorData {
             SensorData::Network(networkdata) => SensorData::Network(networkdata.to_wh()),
             SensorData::Processes(processesdata) => SensorData::Processes(processesdata.clone()),
             SensorData::TCPConnections(tcpconnections) => SensorData::TCPConnections(tcpconnections.clone()),
+            #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+            SensorData::ANE(anedata) => SensorData::ANE(anedata.to_wh()),
         }
     }
 }

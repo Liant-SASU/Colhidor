@@ -1,4 +1,6 @@
 pub mod sensors;
+#[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+mod silicon_sampler;
 
 use std::{
     cell::RefCell,
@@ -8,12 +10,16 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
+#[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+use macmon::Metrics as SiliconMetrics;
+#[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+use sensors::ANESensor;
+#[cfg(not(all(target_os = "macos", target_arch = "aarch64")))]
+use sensors::gpu::{GPUVendor, get_gpu_list};
 use sensors::{
-    DiskSensor, Event, NetworkSensor, ProcessesSensor, RamSensor, SensorData, SensorType, TCPConnectionsSensor,
-    create_event_from_sensors,
-    data::EnergyWh,
+    DiskSensor, NetworkSensor, ProcessesSensor, RamSensor, SensorType, TCPConnectionsSensor, create_event_from_sensors,
+    data::{EnergyWh, Event, SensorData},
     get_hardware_info,
-    gpu::{GPUVendor, get_gpu_list},
 };
 use serde::Serialize;
 use sysinfo::System;
@@ -50,13 +56,14 @@ pub struct MQTTInfo {
     unit: ConsumptionUnit,
 }
 
-/// Background sensor-collection application.
 pub struct CollectorApp {
     mqtt_info: Option<MQTTInfo>,
     sensors: Vec<SensorType>,
     system: Rc<RefCell<System>>,
     capture_interval: u64,
     last_timestamp: Option<u64>,
+    #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+    shared_metrics: Rc<RefCell<Option<SiliconMetrics>>>,
     #[cfg(debug_assertions)]
     iteration: u64,
 }
@@ -85,6 +92,8 @@ impl CollectorApp {
             last_timestamp: None,
             #[cfg(debug_assertions)]
             iteration: 0,
+            #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+            shared_metrics: Rc::new(RefCell::new(None)),
         })
     }
 
@@ -97,7 +106,12 @@ impl CollectorApp {
 
         // CPU sensor
         crate::clog!("Initializing sensors...");
-        match sensors::cpu::get_cpu_power_sensor(self.system.clone(), 0) {
+        #[cfg(not(all(target_os = "macos", target_arch = "aarch64")))]
+        let cpu_sensor_result = sensors::cpu::get_cpu_power_sensor(self.system.clone(), 0);
+        #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+        let cpu_sensor_result = sensors::cpu::get_cpu_power_sensor(self.system.clone(), self.shared_metrics.clone());
+
+        match cpu_sensor_result {
             Ok(sensor) => {
                 if let SensorType::CPU(cpu_sensor) = &sensor {
                     let (os_label, mode_label) = cpu_sensor.power_mode_labels();
@@ -109,61 +123,82 @@ impl CollectorApp {
             Err(e) => crate::clog!("✗ Failed to initialize CPU Power Sensor: {:?}", e),
         }
 
-        // GPU sensors
-        let gpu_list = get_gpu_list();
-        crate::clog!("\nDetected GPUs: {gpu_list:#?}");
-        if gpu_list.is_empty() {
-            crate::clog!("⚠ No supported GPU adapters detected.");
-        }
+        // GPU sensor
+        #[cfg(not(all(target_os = "macos", target_arch = "aarch64")))]
+        {
+            let gpu_list = get_gpu_list();
+            crate::clog!("\nDetected GPUs: {gpu_list:#?}");
+            if gpu_list.is_empty() {
+                crate::clog!("⚠ No supported GPU adapters detected.");
+            }
 
-        let (mut nvidia_index, mut amd_index, mut intel_index) = (0u32, 0u32, 0u32);
-        for gpu_name in &gpu_list {
-            let vendor = GPUVendor::from_str(gpu_name);
-            let vendor_index = match vendor {
-                GPUVendor::Nvidia => {
-                    let idx = nvidia_index;
-                    nvidia_index += 1;
-                    idx
-                }
-                GPUVendor::Amd => {
-                    let idx = amd_index;
-                    amd_index += 1;
-                    idx
-                }
-                GPUVendor::Intel => {
-                    let idx = intel_index;
-                    intel_index += 1;
-                    idx
-                }
-                GPUVendor::Other => 0,
-            };
+            let (mut nvidia_index, mut amd_index, mut intel_index) = (0u32, 0u32, 0u32);
+            for gpu_name in &gpu_list {
+                let vendor = GPUVendor::from_str(gpu_name);
+                let vendor_index = match vendor {
+                    GPUVendor::Nvidia => {
+                        let idx = nvidia_index;
+                        nvidia_index += 1;
+                        idx
+                    }
+                    GPUVendor::Amd => {
+                        let idx = amd_index;
+                        amd_index += 1;
+                        idx
+                    }
+                    GPUVendor::Intel => {
+                        let idx = intel_index;
+                        intel_index += 1;
+                        idx
+                    }
+                    GPUVendor::Other => 0,
+                };
 
-            match sensors::gpu::get_gpu_energy_sensor(gpu_name, vendor_index) {
-                Ok(sensor) => {
-                    crate::clog!(
-                        "✓ GPU sensor initialized: '{}' (vendor={:?}, vendor_index={})",
-                        gpu_name,
-                        vendor,
-                        vendor_index
-                    );
-                    self.sensors.push(sensor);
-                }
-                Err(e) => {
-                    crate::clog!(
-                        "✗ Failed to initialize GPU sensor for '{}' (vendor={:?}, vendor_index={}): {:?}",
-                        gpu_name,
-                        vendor,
-                        vendor_index,
-                        e
-                    );
+                match sensors::gpu::get_gpu_energy_sensor(gpu_name, vendor_index) {
+                    Ok(sensor) => {
+                        crate::clog!(
+                            "✓ GPU sensor initialized: '{}' (vendor={:?}, vendor_index={})",
+                            gpu_name,
+                            vendor,
+                            vendor_index
+                        );
+                        self.sensors.push(sensor);
+                    }
+                    Err(e) => {
+                        crate::clog!(
+                            "✗ Failed to initialize GPU sensor for '{}' (vendor={:?}, vendor_index={}): {:?}",
+                            gpu_name,
+                            vendor,
+                            vendor_index,
+                            e
+                        );
+                    }
                 }
             }
         }
+        #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+        {
+            let sensor = sensors::gpu::get_gpu_energy_sensor(self.shared_metrics.clone());
+            self.sensors.push(sensor);
+        }
 
-        // RAM, Disk, Network sensors
+        // Ram sensor
+        #[cfg(not(all(target_os = "macos", target_arch = "aarch64")))]
         self.sensors.push(SensorType::RAM(RamSensor::new(self.system.clone())));
+        #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+        self.sensors.push(SensorType::RAM(RamSensor::new(
+            self.system.clone(),
+            self.shared_metrics.clone(),
+        )));
+
+        // Disk, Network sensors
         self.sensors.push(SensorType::Disk(DiskSensor::new()));
         self.sensors.push(SensorType::Network(NetworkSensor::new()));
+
+        // ANE sensor
+        #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+        self.sensors
+            .push(SensorType::ANE(ANESensor::new(self.shared_metrics.clone())));
 
         //  Processes sensors
         let hostname = hostname::get().unwrap_or_default().to_string_lossy().to_string();
@@ -172,7 +207,7 @@ impl CollectorApp {
             hostname.to_string(),
         )));
 
-        // TCP Connections sensor
+        // TCP Connections sensors
         self.sensors
             .push(SensorType::TCPConnections(TCPConnectionsSensor::new(hostname)));
 
@@ -213,6 +248,8 @@ impl CollectorApp {
                 SensorData::TCPConnections(tcpconnections_data) => {
                     mqtt_info.publisher.publish(&topic, tcpconnections_data, timestamp)
                 }
+                #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+                SensorData::ANE(ane_data) => mqtt_info.publisher.publish(&topic, ane_data, timestamp),
             };
             #[cfg(debug_assertions)]
             match _result {
@@ -237,8 +274,15 @@ impl CollectorApp {
         }
     }
 
+    #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+    fn update_silicon_metrics(&mut self, silicon_metrics_rx: &std::sync::mpsc::Receiver<SiliconMetrics>) {
+        if let Some(metrics) = silicon_sampler::try_recv_latest(silicon_metrics_rx) {
+            *self.shared_metrics.borrow_mut() = Some(metrics);
+        }
+    }
+
     /// Runs the collection loop, sampling sensors every capture interval second.
-    pub async fn run(&mut self) {
+    pub async fn run(mut self) {
         #[cfg(debug_assertions)]
         println!("\n========== POWER CONSUMPTION MONITORING ==========\nPress Ctrl+C to stop.\n");
 
@@ -248,6 +292,9 @@ impl CollectorApp {
             return;
         };
 
+        #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+        let (silicon_sampler, silicon_metrics_rx) = silicon_sampler::SiliconSampler::new();
+
         // To synchronize machines timestamp on the modulo
         let remaining_secs = self.capture_interval - (now.as_secs() % self.capture_interval);
         let remaining = Duration::from_secs(remaining_secs) - Duration::from_millis(now.subsec_millis() as u64);
@@ -255,6 +302,9 @@ impl CollectorApp {
         sleep_until(Instant::now() + remaining).await;
 
         let mut interval = interval(Duration::from_secs(self.capture_interval));
+
+        #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+        silicon_sampler.run((self.capture_interval * 1000) as u32);
 
         loop {
             interval.tick().await;
@@ -268,6 +318,9 @@ impl CollectorApp {
 
                 #[cfg(debug_assertions)]
                 println!("\n--- Iteration {} (timestamp : {}) ---", self.iteration, timestamp);
+
+                #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+                self.update_silicon_metrics(&silicon_metrics_rx);
 
                 let event = create_event_from_sensors(&self.sensors, since_last_update);
 

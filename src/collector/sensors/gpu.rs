@@ -1,7 +1,16 @@
 use std::collections::HashMap;
+#[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+use std::{cell::RefCell, rc::Rc};
 
-use super::{InitialInfo, Sensor, SensorData, SensorError, SensorType, data::Percent};
+#[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+use macmon::Metrics;
 
+use super::{
+    Sensor, SensorError, SensorType,
+    data::{InitialInfo, Percent, SensorData},
+};
+
+#[cfg(not(all(target_os = "macos", target_arch = "aarch64")))]
 /// GPU hardware vendor identifier.
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum GPUVendor {
@@ -11,6 +20,7 @@ pub enum GPUVendor {
     Other,
 }
 
+#[cfg(not(all(target_os = "macos", target_arch = "aarch64")))]
 impl GPUVendor {
     /// Detects the vendor from a name string (e.g. "NVIDIA GeForce RTX 3070").
     pub fn from_str(vendor_str: &str) -> GPUVendor {
@@ -110,6 +120,8 @@ pub enum GPUSensor {
     Amd(amd_gpu::AmdGPUSensor),
     #[cfg(target_os = "windows")]
     Intel { sensor: intel_gpu::IntelGPUSensor },
+    #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+    AppleSilicon(apple_silicon_gpu::SiliconGPUSensor),
 }
 
 impl Sensor for GPUSensor {
@@ -121,7 +133,12 @@ impl Sensor for GPUSensor {
             GPUSensor::Amd(sensor) => sensor.read_full_data(),
             #[cfg(target_os = "windows")]
             GPUSensor::Intel { sensor } => sensor.read_full_data(),
-            #[cfg(not(any(target_os = "windows", target_os = "linux")))]
+            #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+            GPUSensor::AppleSilicon(sensor) => sensor.read_full_data(),
+            #[cfg(not(any(
+                not(any(target_os = "windows", target_os = "linux")),
+                not(all(target_os = "macos", target_arch = "aarch64"))
+            )))]
             _ => Err(SensorError::NotSupported),
         }
     }
@@ -135,6 +152,7 @@ impl Sensor for GPUSensor {
     }
 }
 
+#[cfg(not(all(target_os = "macos", target_arch = "aarch64")))]
 /// Creates a GPU energy sensor appropriate for the given vendor.
 pub fn get_gpu_energy_sensor(vendor_id: &str, index: u32) -> Result<SensorType, SensorError> {
     let vendor = GPUVendor::from_str(vendor_id);
@@ -165,6 +183,13 @@ pub fn get_gpu_energy_sensor(vendor_id: &str, index: u32) -> Result<SensorType, 
         let _ = (vendor, index);
         Err(SensorError::NotSupported)
     }
+}
+
+#[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+pub fn get_gpu_energy_sensor(shared_metrics: Rc<RefCell<Option<Metrics>>>) -> SensorType {
+    SensorType::GPU(GPUSensor::AppleSilicon(apple_silicon_gpu::SiliconGPUSensor::new(
+        shared_metrics,
+    )))
 }
 
 impl GPUSensor {
@@ -549,6 +574,59 @@ mod intel_gpu {
                 }
                 .into())
             }
+        }
+    }
+}
+
+#[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+mod apple_silicon_gpu {
+    use std::{cell::RefCell, rc::Rc, time::Instant};
+
+    use macmon::Metrics;
+
+    use super::super::{
+        Sensor, SensorError,
+        data::{EnergyUj, GPUData, Percent, SensorData},
+    };
+
+    pub struct SiliconGPUSensor {
+        shared_metrics: Rc<RefCell<Option<Metrics>>>,
+        last_reading: RefCell<Option<Instant>>,
+    }
+
+    impl SiliconGPUSensor {
+        pub fn new(shared_metrics: Rc<RefCell<Option<Metrics>>>) -> Self {
+            Self {
+                shared_metrics,
+                last_reading: RefCell::new(None),
+            }
+        }
+    }
+
+    impl Sensor for SiliconGPUSensor {
+        fn read_full_data(&self) -> Result<SensorData, SensorError> {
+            let metrics_ref = self.shared_metrics.borrow();
+            let metrics = metrics_ref
+                .as_ref()
+                .ok_or_else(|| SensorError::ReadError("No macmon metrics available yet".to_string()))?;
+
+            let now = Instant::now();
+            let mut last = self.last_reading.borrow_mut();
+            let elapsed_secs = last.map(|prev| now.duration_since(prev).as_secs_f64());
+            *last = Some(now);
+
+            let total_energy = elapsed_secs.map(|secs| {
+                EnergyUj::from_f64((metrics.gpu_power + metrics.gpu_ram_power) as f64 * secs * 1_000_000.0)
+            });
+
+            let usage_percent = Percent::from((metrics.gpu_scaled_ratio * 100.0) as f32);
+
+            Ok(GPUData {
+                total_energy,
+                usage_percent,
+                vram_usage_percent: None,
+            }
+            .into())
         }
     }
 }
