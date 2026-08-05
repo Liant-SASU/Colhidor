@@ -248,6 +248,8 @@ impl CollectorApp {
                 SensorData::TCPConnections(tcpconnections_data) => {
                     mqtt_info.publisher.publish(&topic, tcpconnections_data, timestamp)
                 }
+                #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+                SensorData::ANE(ane_data) => mqtt_info.publisher.publish(&topic, ane_data, timestamp),
             };
             #[cfg(debug_assertions)]
             match _result {

@@ -2,7 +2,10 @@ use std::{cell::RefCell, rc::Rc, time::Instant};
 
 use macmon::Metrics;
 
-use super::super::{CPUData, EnergyUj, Percent, SensorData, SensorError};
+use super::super::{
+    SensorError,
+    data::{CPUData, EnergyUj, Percent, SensorData},
+};
 
 pub struct SiliconCPUSensor {
     shared_metrics: Rc<RefCell<Option<Metrics>>>,

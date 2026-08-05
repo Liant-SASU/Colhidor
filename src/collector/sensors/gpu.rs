@@ -584,7 +584,10 @@ mod apple_silicon_gpu {
 
     use macmon::Metrics;
 
-    use super::super::{EnergyUj, GPUData, Percent, Sensor, SensorData, SensorError};
+    use super::super::{
+        Sensor, SensorError,
+        data::{EnergyUj, GPUData, Percent, SensorData},
+    };
 
     pub struct SiliconGPUSensor {
         shared_metrics: Rc<RefCell<Option<Metrics>>>,
