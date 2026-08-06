@@ -100,7 +100,7 @@ impl Sensor for CPUSensor {
             CPUOS::Estimation(sensor) => {
                 let usage_percent = self.read_sysinfo_usage_percent()?;
                 Ok(SensorData::CPU(CPUData {
-                    total_energy: Some(sensor.estimate(usage_percent.as_ref().map(Percent::as_f32).unwrap_or(0.0))),
+                    total_energy: sensor.estimate(usage_percent.as_ref().map(Percent::as_f32).unwrap_or(0.0)),
                     pp0_energy: None,
                     pp1_energy: None,
                     dram_energy: None,
