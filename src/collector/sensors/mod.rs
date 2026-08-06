@@ -199,7 +199,7 @@ pub fn create_event_from_sensors(sensors: &Vec<SensorType>, since_last_update: D
             if let SensorData::GPU(ref mut gpu) = data[idx] {
                 if gpu.total_energy.is_none() {
                     if let Some(usage) = gpu.usage_percent {
-                        let estimated = cpu::estimate_igpu_energy(usage, since_last_update);
+                        let estimated = cpu::estimate_igpu_energy(usage, since_last_update.as_secs_f64());
                         gpu.total_energy = Some(estimated);
                     }
                 }

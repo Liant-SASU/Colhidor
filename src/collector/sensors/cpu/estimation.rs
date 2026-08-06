@@ -109,21 +109,21 @@ fn estimate_igpu_power(usage_percent: Percent) -> f64 {
 }
 
 /// Estimates energy in µJ directly from usage and elapsed duration.
-pub fn estimate_energy(tdp: f64, usage_percent: f64, duration: std::time::Duration) -> EnergyUj {
-    let energy_joules = estimate_power(tdp, usage_percent) * duration.as_secs_f64();
+pub fn estimate_energy(tdp: f64, usage_percent: f64, secs: f64) -> EnergyUj {
+    let energy_joules = estimate_power(tdp, usage_percent) * secs;
     EnergyUj::from_joules(energy_joules)
 }
 
 /// Estimates integrate-GPU energy in µJ directly from usage and elapsed duration.
-pub fn estimate_igpu_energy(usage_percent: Percent, duration: std::time::Duration) -> EnergyUj {
-    let energy_joules = estimate_igpu_power(usage_percent) * duration.as_secs_f64();
+pub fn estimate_igpu_energy(usage_percent: Percent, secs: f64) -> EnergyUj {
+    let energy_joules = estimate_igpu_power(usage_percent) * secs;
     EnergyUj::from_joules(energy_joules)
 }
 
 /// TDP-based CPU energy consumption estimator.
 pub struct EstimationCPUSensor {
     tdp: f64,
-    last_reading: RefCell<Instant>,
+    last_reading: RefCell<Option<Instant>>,
 }
 
 impl EstimationCPUSensor {
@@ -131,15 +131,20 @@ impl EstimationCPUSensor {
     pub fn new(tdp: f64) -> Self {
         Self {
             tdp,
-            last_reading: RefCell::new(Instant::now()),
+            last_reading: RefCell::new(None),
         }
     }
 
     /// Estimates energy comsumption since last call from CPU usage percentage.
-    pub fn estimate(&self, usage_percent: f32) -> EnergyUj {
+    pub fn estimate(&self, usage_percent: f32) -> Option<EnergyUj> {
         let now = Instant::now();
-        let duration = now.duration_since(*self.last_reading.borrow());
-        *self.last_reading.borrow_mut() = now;
-        estimate_energy(self.tdp, usage_percent as f64, duration)
+        let mut last = self.last_reading.borrow_mut();
+        let elapsed_secs = last.map(|prev| now.duration_since(prev).as_secs_f64());
+        *last = Some(now);
+        if let Some(secs) = elapsed_secs {
+            Some(estimate_energy(self.tdp, usage_percent as f64, secs))
+        } else {
+            None
+        }
     }
 }
