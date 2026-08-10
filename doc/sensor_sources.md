@@ -30,6 +30,10 @@ The sources of the metrics collected and estimated by Colhidor for every sensor 
        * Path: /sys/class/powercap/intel-rapl:0/energy_uj.
    * Calculation: Directly reads microjoules ($\mu J$) from the sysfs interface and calculates the power over the measurement interval.
 
+  ### Apple silicon
+   * Library : Macmon
+   * Source: [Macmon](https://github.com/vladkens/macmon)
+
   ### Fallback
 
   Fallback (OS without RAPL support or insufficient permissions, currently always on macOS)
@@ -55,11 +59,21 @@ The sources of the metrics collected and estimated by Colhidor for every sensor 
    * Library: Win32 Performance Data Helper (PDH).
    * Source: Windows Performance Counter: \\GPU Engine(*)\\Utilization Percentage. Power consumption comes from PP1.
 
+  ### Apple silicon
+   * Library : Macmon
+   * Source: [Macmon](https://github.com/vladkens/macmon)
+
   ---
 
   ## RAM Metrics
+
+  ### Default
    * Library: sysinfo.
    * Power Estimation: Fixed at a constant 5W for the entire memory bank, should be per-stick constant or DRAM ([Scaphandre doc](https://hubblo-org.github.io/scaphandre-documentation/explanations/rapl-domains.html)).
+   
+  ### Apple silicon
+   * Library : Macmon
+   * Source: [Macmon](https://github.com/vladkens/macmon)
 
   ---
 
@@ -77,9 +91,14 @@ The sources of the metrics collected and estimated by Colhidor for every sensor 
   ## Network Metrics
    * Library: sysinfo, real sent/received bytes during the sampling period.
    * Source: Network interface throughput counters.
-   * Power Estimation:
-       * Formula: $0.2W (\text{idle}) + (\text{Throughput MB/s} \times 0.01)$
-       Capped at 3W per interface, should be refined with more data and sources, the CPU (already measured) accounts for the vast majority of the consumption under network load for packet processing: [Understanding Power Efficiency of TCP/IP Packet Processing over 10GbE](https://www.researchgate.net/publication/228358314_Understanding_Power_Efficiency_of_TCPIP_Packet_Processing_over_10GbE).
+    * Power Estimation:
+      * Formula: $0.3W (\text{idle}) + (\text{Throughput MB/s} \times 0.003$
+      Capped at 2.5W, computed once per capture interval from the aggregate
+      throughput across all detected network interfaces (not per-interface),
+      should be refined with more data and sources — the CPU (already
+      measured) accounts for the vast majority of the consumption under
+      network load for packet processing: [Understanding Power Efficiency of
+      TCP/IP Packet Processing over 10GbE](https://www.researchgate.net/publication/228358314_Understanding_Power_Efficiency_of_TCPIP_Packet_Processing_over_10GbE).
 
   ---
 
