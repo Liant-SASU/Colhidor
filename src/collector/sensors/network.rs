@@ -13,7 +13,9 @@ const NIC_MAX_W: f64 = 2.5;
 
 /// Network interface sensor that estimates energy consumption from throughput.
 pub struct NetworkSensor {
+    /// Cached list of network interfaces.
     networks: RefCell<Networks>,
+    /// Timestamp of the last reading.
     last_reading: RefCell<Option<Instant>>,
 }
 
@@ -28,6 +30,7 @@ impl NetworkSensor {
 }
 
 impl Sensor for NetworkSensor {
+    /// Reads network throughput and estimates energy consumption.
     fn read_full_data(&self) -> Result<SensorData, SensorError> {
         let mut networks = self
             .networks
@@ -62,6 +65,7 @@ impl Sensor for NetworkSensor {
         }))
     }
 
+    /// Returns a comma-separated list of network interface names.
     fn read_name(&self) -> Result<String, SensorError> {
         let mut networks = self
             .networks

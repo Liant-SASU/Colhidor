@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 pub const MICROJOULES_PER_JOULE: f64 = 1_000_000.0;
 pub const SECONDS_PER_HOUR: f64 = 3600.0;
 
+/// Energy value stored in microjoules.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Serialize)]
 pub struct EnergyUj(u64);
 
@@ -15,26 +16,32 @@ impl std::fmt::Display for EnergyUj {
 }
 
 impl EnergyUj {
+    /// Creates an EnergyUj value from joules.
     pub fn from_joules(joules: f64) -> Self {
         EnergyUj((joules * MICROJOULES_PER_JOULE) as u64)
     }
 
+    /// Creates an EnergyUj value from millijoules.
     pub fn from_millijoules(mj: u64) -> Self {
         EnergyUj(mj * 1_000)
     }
 
+    /// Returns the energy value as a u64.
     pub fn as_u64(&self) -> u64 {
         self.0
     }
 
+    /// Returns the energy value as an f64.
     pub fn as_f64(&self) -> f64 {
         self.0 as f64
     }
 
+    /// Converts the energy to joules.
     pub fn as_joules(&self) -> f64 {
         self.as_f64() / MICROJOULES_PER_JOULE
     }
 
+    /// Converts the energy to average power in watts over the given duration.
     pub fn as_watts_for_seconds(&self, seconds: f64) -> f64 {
         if seconds <= 0.0 {
             0.0
@@ -43,10 +50,12 @@ impl EnergyUj {
         }
     }
 
+    /// Converts the energy to watt-hours.
     pub fn as_watt_hours(&self) -> f64 {
         self.as_joules() / SECONDS_PER_HOUR
     }
 
+    /// Scales the energy by a factor, returning zero for invalid factors.
     pub fn scale_by(self, factor: f64) -> Self {
         if !factor.is_finite() || factor <= 0.0 {
             EnergyUj(0)
@@ -55,14 +64,17 @@ impl EnergyUj {
         }
     }
 
+    /// Creates an EnergyUj from a raw f64 value, clamped to non-negative.
     pub fn from_f64(value: f64) -> Self {
         EnergyUj(value.max(0.0) as u64)
     }
 
+    /// Creates an EnergyUj from a raw u64 value.
     pub fn from_u64(value: u64) -> Self {
         EnergyUj(value)
     }
 
+    /// Converts this energy value to watt-hours.
     pub fn to_wh(self) -> EnergyWh {
         EnergyWh(self.as_watt_hours())
     }
@@ -106,6 +118,7 @@ impl std::ops::MulAssign<f64> for EnergyUj {
     }
 }
 
+/// Energy value stored in watt-hours.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Serialize)]
 pub struct EnergyWh(f64);
 
@@ -115,26 +128,31 @@ impl std::fmt::Display for EnergyWh {
     }
 }
 
+/// Power value stored in watts.
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub struct PowerW(f64);
 
-//byte unit
+/// Byte count value.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize)]
 pub struct Byte(u64);
 
 impl Byte {
+    /// Returns the byte count as a u64.
     pub fn as_u64(&self) -> u64 {
         self.0
     }
 
+    /// Returns the byte count as an f64.
     pub fn as_f64(&self) -> f64 {
         self.0 as f64
     }
 
+    /// Converts the byte count to megabytes.
     pub fn as_mb(&self) -> f64 {
         self.as_f64() / 1_000_000.0
     }
 
+    /// Creates a Byte value from a u64.
     pub fn from(value: u64) -> Self {
         Byte(value)
     }
@@ -158,14 +176,17 @@ impl std::ops::AddAssign<u64> for Byte {
     }
 }
 
+/// Percentage value (0.0–100.0).
 #[derive(Debug, Clone, Copy, Default, PartialEq, Serialize)]
 pub struct Percent(f32);
 
 impl Percent {
+    /// Returns the percentage as an f32.
     pub fn as_f32(&self) -> f32 {
         self.0
     }
 
+    /// Creates a Percent from an f32, returning None if out of range.
     pub fn from(value: f32) -> Option<Self> {
         if value < 0.0 || value > 100.0 {
             None
@@ -219,41 +240,57 @@ pub struct AllTimeData<E = EnergyUj> {
 /// CPU energy and usage readings.
 #[derive(Debug, Clone, Serialize)]
 pub struct CPUData<E = EnergyUj> {
+    /// Total package energy.
     pub total_energy: Option<E>,
+    /// Power plane 0 (core) energy.
     pub pp0_energy: Option<E>,
+    /// Power plane 1 (integrated GPU) energy.
     pub pp1_energy: Option<E>,
+    /// DRAM energy.
     pub dram_energy: Option<E>,
+    /// CPU usage percentage.
     pub usage_percent: Option<Percent>,
 }
 
 /// GPU energy and usage readings.
 #[derive(Debug, Clone, Serialize)]
 pub struct GPUData<E = EnergyUj> {
+    /// Total GPU energy.
     pub total_energy: Option<E>,
+    /// GPU usage percentage.
     pub usage_percent: Option<Percent>,
+    /// VRAM usage percentage.
     pub vram_usage_percent: Option<Percent>,
 }
 
 /// RAM energy and usage readings.
 #[derive(Debug, Clone, Serialize)]
 pub struct RamData<E = EnergyUj> {
+    /// Total RAM energy.
     pub total_energy: Option<E>,
+    /// RAM usage percentage.
     pub usage_percent: Option<Percent>,
 }
 
 /// Disk energy and I/O throughput readings.
 #[derive(Debug, Clone, Serialize)]
 pub struct DiskData<E = EnergyUj> {
+    /// Total disk energy.
     pub total_energy: Option<E>,
+    /// Bytes read from disk.
     pub read_bytes: Byte,
+    /// Bytes written to disk.
     pub written_bytes: Byte,
 }
 
 /// Network energy and throughput readings.
 #[derive(Debug, Clone, Serialize)]
 pub struct NetworkData<E = EnergyUj> {
+    /// Total network energy.
     pub total_energy: Option<E>,
+    /// Bytes downloaded.
     pub downloaded_bytes: Byte,
+    /// Bytes uploaded.
     pub uploaded_bytes: Byte,
 }
 
@@ -264,17 +301,27 @@ pub struct ProcessID(pub u64);
 /// Process identifier, heredity, usage and thoughput readings
 #[derive(Debug, Clone, Serialize)]
 pub struct ProcessData {
+    /// Unique identifier for the process.
     pub process_id: ProcessID,
+    /// Process name.
     pub name: String,
+    /// Parent process identifier, if available.
     pub parent: Option<ProcessID>,
+    /// Path to the process executable.
     pub exe_path: Option<String>,
+    /// CPU usage percentage.
     pub cpu_usage: Option<Percent>,
+    /// GPU usage percentage.
     pub gpu_usage: Option<Percent>,
+    /// RAM usage percentage.
     pub ram_usage: Option<Percent>,
+    /// Bytes read by the process.
     pub read_bytes: Option<Byte>,
+    /// Bytes written by the process.
     pub written_bytes: Option<Byte>,
 }
 
+/// Collection of per-process data.
 #[derive(Debug, Clone, Serialize)]
 pub struct ProcessesData(pub Vec<ProcessData>);
 
@@ -282,36 +329,55 @@ pub struct ProcessesData(pub Vec<ProcessData>);
 #[derive(Debug, PartialEq, Eq, Clone, Serialize, Hash)]
 pub struct TCPConnectionID(pub u64);
 
+/// TCP connection data including addresses and throughput.
 #[derive(Debug, Clone, Serialize)]
 pub struct TCPConnectionData {
+    /// Unique identifier for the connection.
     pub connection_id: TCPConnectionID,
+    /// Local process using this connection, if known.
     pub local_process_id: Option<ProcessID>,
+    /// Local socket address.
     pub local_addr: SocketAddr,
+    /// Remote socket address.
     pub remote_addr: SocketAddr,
+    /// Bytes received on this connection.
     pub recv_bytes: Option<Byte>,
+    /// Bytes sent on this connection.
     pub sent_bytes: Option<Byte>,
+    /// Whether the local side is likely the client.
     pub maybe_client: Option<bool>,
 }
 
+/// Collection of TCP connection data.
 #[derive(Debug, Clone, Serialize)]
 pub struct TCPConnectionsData(pub Vec<TCPConnectionData>);
 
+/// Apple Neural Engine energy readings (macOS aarch64 only).
 #[derive(Debug, Clone, Serialize)]
 #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
 pub struct ANEData<E = EnergyUj> {
+    /// Total ANE energy.
     pub total_energy: Option<E>,
 }
 
 /// Tagged union of all sensor reading types.
 #[derive(Debug, Clone, Serialize)]
 pub enum SensorData<E = EnergyUj> {
+    /// CPU sensor readings.
     CPU(CPUData<E>),
+    /// GPU sensor readings.
     GPU(GPUData<E>),
+    /// RAM sensor readings.
     Ram(RamData<E>),
+    /// Disk sensor readings.
     Disk(DiskData<E>),
+    /// Network sensor readings.
     Network(NetworkData<E>),
+    /// Per-process readings.
     Processes(ProcessesData),
+    /// TCP connection readings.
     TCPConnections(TCPConnectionsData),
+    /// Apple Neural Engine readings (macOS aarch64 only).
     #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
     ANE(ANEData<E>),
 }
@@ -319,35 +385,55 @@ pub enum SensorData<E = EnergyUj> {
 /// Sensor component category type.
 #[derive(Debug, Clone)]
 pub enum SensorKind {
+    /// CPU sensor.
     CPU,
+    /// GPU sensor.
     GPU,
+    /// RAM sensor.
     Ram,
+    /// Disk sensor.
     Disk,
+    /// Network sensor.
     Network,
+    /// Process sensor.
     Processes,
+    /// TCP connections sensor.
     TCPConnections,
+    /// Apple Neural Engine sensor (macOS aarch64 only).
     #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
     ANE,
 }
 
 /// Hardware information variant collected at startup.
 pub enum InitialInfo {
+    /// Operating system and host information.
     System(SystemInfo),
+    /// CPU model and specs.
     CPU(CpuInfo),
+    /// Memory information.
     Memory(MemoryInfo),
+    /// List of GPU names.
     Gpus(Vec<String>),
+    /// List of disk information.
     Disks(Vec<DiskInfo>),
+    /// Battery information.
     Battery(BatteryInfo),
 }
 
 /// Complete hardware inventory of the system.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct HardwareInfo {
+    /// Operating system and host information.
     pub system: SystemInfo,
+    /// CPU model, vendor, and core count.
     pub cpu: CpuInfo,
+    /// Total physical and swap memory sizes.
     pub memory: MemoryInfo,
+    /// List of GPU names.
     pub gpus: Vec<String>,
+    /// List of disk information.
     pub disks: Vec<DiskInfo>,
+    /// Battery presence, capacity, and cycle count.
     pub battery: BatteryInfo,
 }
 
@@ -367,7 +453,9 @@ impl HardwareInfo {
 /// Metadata pairing entry list with serialized hardware info.
 #[derive(Debug, Clone)]
 pub struct GeneralData {
+    /// List of sensor kinds detected.
     pub sensors: Vec<SensorKind>,
+    /// Complete hardware inventory.
     pub hardware_info: HardwareInfo,
 }
 
@@ -405,51 +493,74 @@ impl From<Vec<InitialInfo>> for HardwareInfo {
 /// Operating system and host information.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct SystemInfo {
+    /// Operating system name and version.
     pub os: String,
+    /// Machine hostname.
     pub hostname: String,
+    /// Whether the system is a virtual machine.
     pub is_virtual_machine: bool,
 }
 
 /// CPU model, vendor, and core count.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct CpuInfo {
+    /// CPU model name.
     pub name: String,
+    /// CPU vendor (e.g. GenuineIntel, AuthenticAMD).
     pub vendor: String,
+    /// Number of physical cores.
     pub physical_cores: u16,
+    /// Number of logical cores.
     pub logical_cores: u16,
+    /// Base frequency in MHz.
     pub base_frequency_mhz: u64,
+    /// CPU architecture.
     pub architecture: String,
 }
 
 /// Total physical and swap memory sizes.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct MemoryInfo {
+    /// Total RAM in bytes.
     pub total_ram_bytes: u64,
+    /// Total swap in bytes.
     pub total_swap_bytes: u64,
 }
 
 /// Disk name, mount point, and capacity.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct DiskInfo {
+    /// Disk device name.
     pub name: String,
+    /// Mount point path.
     pub mount_point: String,
+    /// File system type.
     pub file_system: String,
+    // Disk type
     pub disk_type: String,
+    /// Total disk capacity in bytes.
     pub total_bytes: u64,
+    /// Used disk space in bytes.
     pub used_bytes: u64,
 }
 
 /// Battery presence, capacity, and cycle count.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct BatteryInfo {
+    /// Whether a battery is present.
     pub present: bool,
+    /// Battery vendor name, if available.
     pub name: Option<String>,
+    /// Design capacity in watt-hours.
     pub design_capacity_wh: Option<f32>,
+    /// Full charge capacity in watt-hours.
     pub full_charge_capacity_wh: Option<f32>,
+    /// Battery cycle count.
     pub cycle_count: Option<u32>,
 }
 
 impl SensorKind {
+    /// Returns a human-readable label for this sensor kind.
     pub fn label(&self) -> &'static str {
         match self {
             SensorKind::CPU => "CPU",
@@ -732,6 +843,7 @@ impl<T> From<NetworkData<T>> for SensorData<T> {
 }
 
 impl CPUData {
+    /// Converts this CPU data to use watt-hours as the energy unit.
     fn to_wh(&self) -> CPUData<EnergyWh> {
         CPUData {
             total_energy: self.total_energy.map(|t| t.to_wh()),
@@ -744,6 +856,7 @@ impl CPUData {
 }
 
 impl GPUData {
+    /// Converts this GPU data to use watt-hours as the energy unit.
     fn to_wh(&self) -> GPUData<EnergyWh> {
         GPUData {
             total_energy: self.total_energy.map(|t| t.to_wh()),
@@ -754,6 +867,7 @@ impl GPUData {
 }
 
 impl RamData {
+    /// Converts this RAM data to use watt-hours as the energy unit.
     fn to_wh(&self) -> RamData<EnergyWh> {
         RamData {
             total_energy: self.total_energy.map(|t| t.to_wh()),
@@ -763,6 +877,7 @@ impl RamData {
 }
 
 impl DiskData {
+    /// Converts this disk data to use watt-hours as the energy unit.
     fn to_wh(&self) -> DiskData<EnergyWh> {
         DiskData {
             total_energy: self.total_energy.map(|t| t.to_wh()),
@@ -773,6 +888,7 @@ impl DiskData {
 }
 
 impl NetworkData {
+    /// Converts this network data to use watt-hours as the energy unit.
     fn to_wh(&self) -> NetworkData<EnergyWh> {
         NetworkData {
             total_energy: self.total_energy.map(|t| t.to_wh()),
@@ -784,6 +900,7 @@ impl NetworkData {
 
 #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
 impl ANEData {
+    /// Converts this ANE data to use watt-hours as the energy unit.
     fn to_wh(&self) -> ANEData<EnergyWh> {
         ANEData {
             total_energy: self.total_energy.map(|t| t.to_wh()),
@@ -792,6 +909,7 @@ impl ANEData {
 }
 
 impl SensorData {
+    /// Converts all energy values in this sensor data to watt-hours.
     pub fn to_wh(&self) -> SensorData<EnergyWh> {
         match self {
             SensorData::CPU(cpudata) => SensorData::CPU(cpudata.to_wh()),

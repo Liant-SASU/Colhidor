@@ -12,12 +12,18 @@ use collector::{CollectorApp, ConsumptionUnit, MQTTInfo};
 /// Configuration options for the application.
 #[derive(Debug, Clone)]
 struct Options {
+    /// Interval in seconds between each data capture.
     capture_interval: u64,
+    /// Identifier used as the root of MQTT topics.
     mqtt_id: Option<String>,
+    /// Address of the MQTT broker to send sensor data to.
     mqtt_addr: Option<SocketAddr>,
+    /// Unit for collector consumption values published via MQTT.
     mqtt_unit: ConsumptionUnit,
+    /// Whether to install the Windows CPU MSR driver.
     #[cfg(target_os = "windows")]
     install_cpu_driver: bool,
+    /// Whether to uninstall the Windows CPU MSR driver.
     #[cfg(target_os = "windows")]
     uninstall_cpu_driver: bool,
 }

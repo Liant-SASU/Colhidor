@@ -35,13 +35,21 @@ pub const SECONDS_PER_HOUR: f64 = 3600.0;
 
 /// Variant wrapper for all supported sensor.
 pub enum SensorType {
+    /// CPU power sensor.
     CPU(CPUSensor),
+    /// GPU power sensor.
     GPU(GPUSensor),
+    /// RAM usage sensor.
     RAM(RamSensor),
+    /// Disk I/O sensor.
     Disk(DiskSensor),
+    /// Network throughput sensor.
     Network(NetworkSensor),
+    /// Per-process sensor.
     Processes(ProcessesSensor),
+    /// TCP connections sensor.
     TCPConnections(TCPConnectionsSensor),
+    /// Apple Neural Engine sensor (macOS aarch64 only).
     #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
     ANE(ANESensor),
 }
@@ -115,14 +123,18 @@ pub trait Sensor {
     fn read_initial_info(&self) -> Result<InitialInfo, SensorError> {
         Err(SensorError::NotSupported)
     }
+    /// Returns the sensor's name.
     fn read_name(&self) -> Result<String, SensorError> {
         Err(SensorError::NotSupported)
     }
 }
 
+/// Errors that can occur while reading sensor data.
 #[derive(Debug)]
 pub enum SensorError {
+    /// The sensor does not support the requested operation.
     NotSupported,
+    /// A read error occurred, with a descriptive message.
     ReadError(String),
 }
 
@@ -298,6 +310,7 @@ pub fn get_hardware_info(sensors: &Vec<SensorType>) -> GeneralData {
     return data;
 }
 
+/// Enriches process data with per-process GPU usage from GPU sensors.
 pub fn update_process_gpu_usage(sensors: &Vec<SensorType>, sensors_data: &mut Vec<SensorData>) {
     let time = SystemTime::now();
     let mut proc_gpu_usage = HashMap::new();
@@ -339,6 +352,7 @@ pub fn update_process_gpu_usage(sensors: &Vec<SensorType>, sensors_data: &mut Ve
     }
 }
 
+/// Enriches TCP connection data with the local process ID.
 pub fn update_tcp_connection_process_id(sensors: &Vec<SensorType>, sensors_data: &mut Vec<SensorData>) {
     let mut pid_to_prid: HashMap<u32, ProcessID> = HashMap::new();
     let mut tcid_to_pid: HashMap<TCPConnectionID, u32> = HashMap::new();
