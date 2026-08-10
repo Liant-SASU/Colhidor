@@ -9,9 +9,12 @@ use super::{
 
 /// Process sensor backed by sysinfo.
 pub struct ProcessesSensor {
+    /// Shared system handle for process information.
     system: Rc<RefCell<System>>,
+    /// Name of the machine collecting data.
     machine_name: String,
     // TO CHANGE IN RC
+    /// Map linking PIDs to internal process IDs.
     pid_to_id: RefCell<HashMap<u32, ProcessID>>,
 }
 
@@ -25,6 +28,7 @@ impl ProcessesSensor {
         }
     }
 
+    /// Returns the map linking PIDs to internal process IDs.
     pub fn pid_to_id(&self) -> HashMap<u32, ProcessID> {
         self.pid_to_id.borrow().clone()
     }
@@ -32,12 +36,16 @@ impl ProcessesSensor {
 
 /// A process key used to identify a process on a machine
 struct ProcessKey {
+    /// Name of the machine which collects data.
     machine_id: String,
+    /// Name of the process.
     process_name: String,
+    /// Operating system PID.
     pid: u32,
 }
 
 impl ProcessKey {
+    /// Creates a new process key from machine name, process name, and PID.
     fn new(machine_id: String, process_name: String, pid: u32) -> Self {
         ProcessKey {
             machine_id,
@@ -63,6 +71,7 @@ impl ProcessKey {
 }
 
 impl Sensor for ProcessesSensor {
+    /// Reads per-process CPU, RAM, and disk I/O usage.
     fn read_full_data(&self) -> Result<SensorData, SensorError> {
         let mut sys = self
             .system

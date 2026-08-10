@@ -5,13 +5,18 @@ use std::{
 
 use macmon::{Metrics, Sampler};
 
+/// Background sampler for Apple Silicon (macOS aarch64) hardware metrics.
 pub struct SiliconSampler {
+    /// Channel sender used to forward collected metrics.
     sender: Sender<Metrics>,
 }
 
+/// Errors that can occur while sampling Apple Silicon metrics.
 #[derive(Debug)]
 pub enum SiliconSamplingError {
+    /// Failed to initialize the Apple Silicon sampler.
     InitError(String),
+    /// Failed to read metrics from the Apple Silicon sampler.
     SamplingError(String),
 }
 
@@ -31,12 +36,14 @@ impl std::fmt::Display for SiliconSamplingError {
 impl std::error::Error for SiliconSamplingError {}
 
 impl SiliconSampler {
+    /// Creates a new SiliconSampler and returns it along with the receiving end of the channel.
     pub fn new() -> (Self, Receiver<Metrics>) {
         let (tx, rx) = mpsc::channel();
 
         (Self { sender: tx }, rx)
     }
 
+    /// Starts sampling Apple Silicon metrics in a background thread at the given interval.
     pub fn run(self, interval_ms: u32) {
         thread::spawn(move || {
             let mut sampler = match Sampler::new() {
@@ -68,6 +75,7 @@ impl SiliconSampler {
     }
 }
 
+/// Drains the receiver and returns the most recent metrics, if any.
 pub fn try_recv_latest(rx: &Receiver<Metrics>) -> Option<Metrics> {
     let mut latest = None;
 

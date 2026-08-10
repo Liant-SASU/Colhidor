@@ -7,12 +7,16 @@ use super::{
     data::{ANEData, EnergyUj, SensorData},
 };
 
+/// Apple Neural Engine (ANE) energy sensor (macOS aarch64 only).
 pub struct ANESensor {
+    /// Shared Apple Silicon metrics.
     shared_metrics: Rc<RefCell<Option<Metrics>>>,
+    /// Timestamp of the last reading.
     last_reading: RefCell<Option<Instant>>,
 }
 
 impl ANESensor {
+    /// Creates a sensor sharing the given Apple Silicon metrics.
     pub fn new(shared_metrics: Rc<RefCell<Option<Metrics>>>) -> Self {
         Self {
             shared_metrics,
@@ -20,6 +24,7 @@ impl ANESensor {
         }
     }
 
+    /// Reads ANE energy consumption since the last call.
     pub fn read_full_data(&self) -> Result<SensorData, SensorError> {
         let metrics_ref = self.shared_metrics.borrow();
         let metrics = metrics_ref

@@ -17,7 +17,9 @@ const UNKNOWN_W_PER_MB: f64 = 0.02;
 
 /// Disk I/O sensor that estimates power from throughput.
 pub struct DiskSensor {
+    /// Cached list of system disks.
     disks: RefCell<Disks>,
+    /// Timestamp of the last reading.
     last_reading: RefCell<Option<Instant>>,
 }
 
@@ -32,6 +34,7 @@ impl DiskSensor {
 }
 
 impl Sensor for DiskSensor {
+    /// Reads disk I/O throughput and estimates energy consumption.
     fn read_full_data(&self) -> Result<SensorData, SensorError> {
         let mut disks = self
             .disks
@@ -81,6 +84,7 @@ impl Sensor for DiskSensor {
         }))
     }
 
+    /// Returns disk hardware information (name, mount point, capacity).
     fn read_initial_info(&self) -> Result<InitialInfo, SensorError> {
         let disks = self
             .disks
@@ -109,6 +113,7 @@ impl Sensor for DiskSensor {
         Ok(InitialInfo::Disks(disk_infos))
     }
 
+    /// Returns a comma-separated list of disk names.
     fn read_name(&self) -> Result<String, SensorError> {
         let disks = self
             .disks

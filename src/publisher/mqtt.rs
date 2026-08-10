@@ -12,6 +12,7 @@ pub const CLIENT_CHANNEL_CAPACITY: usize = 10;
 pub const KEEP_ALIVE_SECS: Duration = Duration::from_secs(5);
 pub const ENCODE_CONFIG: bincode::config::Configuration = bincode::config::standard();
 
+/// Trait for publishing MQTT messages.
 #[automock]
 pub trait MQTTPublisher {
     /// Publish `payload` to the self client `topic`
@@ -25,7 +26,9 @@ impl MQTTPublisher for MQTTClient {
     }
 }
 
+/// Wrapper around an MQTT publisher client that serializes data with timestamps.
 pub struct MQTTPublisherImpl<T: MQTTPublisher> {
+    /// The underlying MQTT publisher client.
     client: T,
 }
 

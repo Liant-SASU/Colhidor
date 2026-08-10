@@ -33,7 +33,9 @@ use crate::utils::logging::start_log_session;
 /// Possible units to choose as output
 #[derive(Debug, Default, Clone, Copy)]
 pub enum ConsumptionUnit {
+    /// Energy expressed in watt-hours.
     WattHour,
+    /// Energy expressed in microjoules (default).
     #[default]
     UJoul,
 }
@@ -51,24 +53,36 @@ impl Display for ConsumptionUnit {
 
 /// MQTT information to interact with a MQTT client
 pub struct MQTTInfo {
+    /// Root identifier used in MQTT topic paths.
     id: String,
+    /// The MQTT publisher client used to send data.
     publisher: MQTTPublisherImpl<rumqttc::Client>,
+    /// Unit for consumption values published via MQTT.
     unit: ConsumptionUnit,
 }
 
+/// Main collector application that manages sensors and the collection loop.
 pub struct CollectorApp {
+    /// Optional MQTT configuration for publishing sensor data.
     mqtt_info: Option<MQTTInfo>,
+    /// List of active hardware sensors.
     sensors: Vec<SensorType>,
+    /// Shared system handle for sensors information.
     system: Rc<RefCell<System>>,
+    /// Interval in seconds between each data capture.
     capture_interval: u64,
+    /// Timestamp of the last capture iteration.
     last_timestamp: Option<u64>,
+    /// Shared Apple Silicon metrics (macOS aarch64 only).
     #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
     shared_metrics: Rc<RefCell<Option<SiliconMetrics>>>,
+    /// Debug iteration counter.
     #[cfg(debug_assertions)]
     iteration: u64,
 }
 
 impl MQTTInfo {
+    /// Creates a new MQTTInfo with the given id, broker address, and unit.
     pub fn new(id: &str, addr: &SocketAddr, unit: ConsumptionUnit) -> Self {
         let publisher = MQTTPublisherImpl::new_from_addr(addr);
         MQTTInfo {
@@ -235,6 +249,7 @@ impl CollectorApp {
         Ok(())
     }
 
+    /// Publishes sensor data to the MQTT broker with the given timestamp.
     fn publish_sensor_data<E: Clone + Serialize>(&self, sensor_data: &SensorData<E>, timestamp: u64) {
         if let Some(mqtt_info) = &self.mqtt_info {
             let topic = sensor_data_to_topic(&mqtt_info.id, &sensor_data);
@@ -274,6 +289,7 @@ impl CollectorApp {
         }
     }
 
+    /// Updates the latest Apple Silicon metrics from the sampler channel.
     #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
     fn update_silicon_metrics(&mut self, silicon_metrics_rx: &std::sync::mpsc::Receiver<SiliconMetrics>) {
         if let Some(metrics) = silicon_sampler::try_recv_latest(silicon_metrics_rx) {
