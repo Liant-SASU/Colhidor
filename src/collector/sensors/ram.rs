@@ -16,7 +16,10 @@ pub struct RamSensor {
     system: Rc<RefCell<System>>,
     #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
     shared_metrics: Rc<RefCell<Option<SiliconMetrics>>>,
+    #[cfg(not(all(target_os = "macos", target_arch = "aarch64")))]
     last_reading: RefCell<Option<(f64, Instant)>>,
+    #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+    last_reading: RefCell<Option<(Instant)>>,
 }
 
 impl RamSensor {
