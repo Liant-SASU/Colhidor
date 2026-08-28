@@ -20,7 +20,7 @@ pub struct DiskSensor {
     /// Cached list of system disks.
     disks: RefCell<Disks>,
     /// Timestamp of the last reading.
-    last_reading: RefCell<Option<Instant>>,
+    last_reading: RefCell<Option<(f64, Instant)>>,
 }
 
 impl DiskSensor {
@@ -44,7 +44,8 @@ impl Sensor for DiskSensor {
 
         let now = Instant::now();
         let mut last = self.last_reading.borrow_mut();
-        let elapsed_secs = last.map(|prev| now.duration_since(prev).as_secs_f64());
+        let elapsed_secs =
+            last.map(|(last_power, last_instant)| (last_power, now.duration_since(last_instant).as_secs_f64()));
 
         let mut read_bytes = 0;
         let mut written_bytes = 0;
@@ -70,12 +71,12 @@ impl Sensor for DiskSensor {
             let power = idle + throughput * per_mb;
             total_power += power;
         }
-        let total_energy_uj = if let Some(duration) = elapsed_secs {
-            Some(EnergyUj::from_joules(total_power * duration))
+        let total_energy_uj = if let Some((last_power, duration)) = elapsed_secs {
+            Some(EnergyUj::from_joules((last_power + total_power) / (duration * 2.0)))
         } else {
             None
         };
-        *last = Some(now);
+        *last = Some((total_power, now));
 
         Ok(SensorData::Disk(DiskData {
             total_energy: total_energy_uj,

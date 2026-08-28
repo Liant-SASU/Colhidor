@@ -8,12 +8,15 @@ use super::{
     data::{EnergyUj, InitialInfo, MemoryInfo, Percent, RamData, SensorData},
 };
 
+#[cfg(not(all(target_os = "macos", target_arch = "aarch64")))]
+const RAM_POWER: f64 = 5.0;
+
 /// RAM usage sensor backed by sysinfo.
 pub struct RamSensor {
     system: Rc<RefCell<System>>,
     #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
     shared_metrics: Rc<RefCell<Option<SiliconMetrics>>>,
-    last_reading: RefCell<Option<Instant>>,
+    last_reading: RefCell<Option<(f64, Instant)>>,
 }
 
 impl RamSensor {
@@ -47,7 +50,8 @@ impl Sensor for RamSensor {
             system.refresh_memory();
             let now = Instant::now();
             let mut last = self.last_reading.borrow_mut();
-            let elapsed_secs = last.map(|prev| now.duration_since(prev).as_secs_f64());
+            let elapsed_secs =
+                last.map(|(last_power, last_instant)| (last_power, now.duration_since(last_instant).as_secs_f64()));
 
             let total_memory = system.total_memory() as f64;
             let used_memory = system.used_memory() as f64;
@@ -57,9 +61,10 @@ impl Sensor for RamSensor {
                 0.0
             };
 
-            let energy_uj = elapsed_secs.map(|secs| EnergyUj::from_joules(secs * 5.0));
+            let energy_uj =
+                elapsed_secs.map(|(last_power, secs)| EnergyUj::from_joules(last_power * RAM_POWER / (2.0 * secs)));
 
-            *last = Some(now);
+            *last = Some((RAM_POWER, now));
 
             Ok(SensorData::Ram(RamData {
                 total_energy: energy_uj,

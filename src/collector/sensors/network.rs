@@ -16,7 +16,7 @@ pub struct NetworkSensor {
     /// Cached list of network interfaces.
     networks: RefCell<Networks>,
     /// Timestamp of the last reading.
-    last_reading: RefCell<Option<Instant>>,
+    last_reading: RefCell<Option<(f64, Instant)>>,
 }
 
 impl NetworkSensor {
@@ -40,7 +40,8 @@ impl Sensor for NetworkSensor {
 
         let now = Instant::now();
         let mut last = self.last_reading.borrow_mut();
-        let elapsed_secs = last.map(|prev| now.duration_since(prev).as_secs_f64());
+        let elapsed_secs =
+            last.map(|(last_power, last_instant)| (last_power, now.duration_since(last_instant).as_secs_f64()));
 
         let mut downloaded_bytes = 0;
         let mut uploaded_bytes = 0;
@@ -49,14 +50,14 @@ impl Sensor for NetworkSensor {
             downloaded_bytes += data.received();
             uploaded_bytes += data.transmitted();
         }
-        let total_energy_uj = if let Some(duration) = elapsed_secs {
-            let throughput_mb = (downloaded_bytes + uploaded_bytes) as f64 / 1_048_576.0;
-            let nic_power = (NIC_IDLE_W + throughput_mb * NIC_W_PER_MB).min(NIC_MAX_W);
-            Some(EnergyUj::from_joules(nic_power * duration))
+        let throughput_mb = (downloaded_bytes + uploaded_bytes) as f64 / 1_048_576.0;
+        let nic_power = (NIC_IDLE_W + throughput_mb * NIC_W_PER_MB).min(NIC_MAX_W);
+        let total_energy_uj = if let Some((last_power, duration)) = elapsed_secs {
+            Some(EnergyUj::from_joules((nic_power + last_power) / (duration * 2.0)))
         } else {
             None
         };
-        *last = Some(now);
+        *last = Some((nic_power, now));
 
         Ok(SensorData::Network(NetworkData {
             total_energy: total_energy_uj,
