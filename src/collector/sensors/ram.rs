@@ -19,7 +19,7 @@ pub struct RamSensor {
     #[cfg(not(all(target_os = "macos", target_arch = "aarch64")))]
     last_reading: RefCell<Option<(f64, Instant)>>,
     #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
-    last_reading: RefCell<Option<(Instant)>>,
+    last_reading: RefCell<Option<Instant>>,
 }
 
 impl RamSensor {
